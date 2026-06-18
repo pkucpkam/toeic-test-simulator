@@ -16,6 +16,7 @@ spring:
       mode: always
       data-locations: classpath:db/migration/V2__init_schema.sql
       separator: ";;"
+      encoding: UTF-8
   flyway:
     enabled: false
 

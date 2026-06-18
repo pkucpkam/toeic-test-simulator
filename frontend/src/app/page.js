@@ -18,7 +18,7 @@ export default function LandingPage() {
     <div className="landing-page">
       <header className="page-header">
         <div className="page-header-inner">
-          <div className="logo-box">IIG VIET NAM</div>
+          <div className="logo-box">pkucpkam</div>
           <nav className="page-nav">
             {user ? (
               <>

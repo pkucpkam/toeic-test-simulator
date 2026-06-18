@@ -51,8 +51,9 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
       )}
 
       {isChecked && question.explanation && (
-        <div className="iig-explanation-box">
-          <strong>Explanation: </strong> {question.explanation}
+        <div className="iig-explanation-box" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+          <strong>Explanation: </strong><br/>
+          {question.explanation}
         </div>
       )}
     </div>
@@ -67,7 +68,7 @@ export function ListeningPicture({ question, selectedOption, onSelectOption, mod
         <div style={{ textAlign: 'center' }}>
           {question.groupData?.imageUrl ? (
              /* eslint-disable-next-line @next/next/no-img-element */
-             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${question.groupData.imageUrl}`} alt="Question visual" style={{ maxWidth: '100%', border: '1px solid #e0e0e0', padding: '4px' }} />
+             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${question.groupData.imageUrl}`} alt="Question visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
           ) : (
              <div style={{ fontStyle: 'italic', color: '#777' }}>Image not provided</div>
           )}
@@ -116,7 +117,8 @@ export function ListeningAudioGroup({ questions, group, selections, onSelectOpti
         )}
         {group?.imageUrl && (
           <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${group.imageUrl}`} alt="Group visual" style={{ maxWidth: '100%', border: '1px solid #e0e0e0', padding: '4px' }} />
+             {/* eslint-disable-next-line @next/next/no-img-element */}
+             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${group.imageUrl}`} alt="Group visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
           </div>
         )}
         {mode !== 'full' && group?.audioUrl && (
@@ -140,16 +142,12 @@ export function ListeningAudioGroup({ questions, group, selections, onSelectOpti
 
 export function IncompleteSentence({ question, selectedOption, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
   return (
-    <>
-      <div className="iig-col-left">
-        <div className="iig-instruction">{question.instruction}</div>
-      </div>
-      <div className="iig-col-right">
-        <div className="iig-question-header">Question</div>
-        <div style={{ marginBottom: '1rem', fontWeight: 'bold' }}>{question.questionNumber}. {question.questionText}</div>
-        <OptionsList question={question} selections={{ [question.id]: selectedOption }} onSelectOption={onSelectOption} mode={mode} checkedQuestions={checkedQuestions} onCheckAnswer={onCheckAnswer} />
-      </div>
-    </>
+    <div style={{ width: '100%', maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
+      <div className="iig-instruction" style={{ marginBottom: '2rem', fontSize: '1.1rem', color: '#555' }}>{question.instruction}</div>
+      <div className="iig-question-header" style={{ marginBottom: '1rem', borderBottom: '2px solid #00205c', paddingBottom: '0.5rem', display: 'inline-block' }}>Question</div>
+      <div style={{ marginBottom: '1.5rem', fontWeight: 'bold', fontSize: '1.2rem', lineHeight: '1.6' }}>{question.questionNumber}. {question.questionText}</div>
+      <OptionsList question={question} selections={{ [question.id]: selectedOption }} onSelectOption={onSelectOption} mode={mode} checkedQuestions={checkedQuestions} onCheckAnswer={onCheckAnswer} />
+    </div>
   );
 }
 

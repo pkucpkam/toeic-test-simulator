@@ -41,7 +41,7 @@ public class Question {
     @Column(name = "option_d", columnDefinition = "TEXT")
     private String optionD;
 
-    @Column(name = "correct_answer", length = 1)
+    @Column(name = "correct_answer", length = 5)
     private String correctAnswer;
 
     @Column(columnDefinition = "TEXT")

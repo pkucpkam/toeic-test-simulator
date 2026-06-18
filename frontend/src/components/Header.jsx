@@ -4,7 +4,7 @@ export default function Header({ sectionTitle, answeredCount, totalQuestions, ti
   return (
     <header className="app-header">
       <div className="header-logo">
-        IIG VIET NAM
+        pkucpkam
       </div>
       <div className="header-title">
         {sectionTitle}

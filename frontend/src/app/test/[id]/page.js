@@ -178,7 +178,7 @@ export default function TestSimulator({ params, searchParams }) {
       <div className="iig-result-page">
         <header className="iig-header" style={{ justifyContent: 'center', position: 'relative' }}>
           <div className="iig-header-left" style={{ position: 'absolute', left: '1rem' }}>
-            <span style={{ color: '#00205c' }}>IIG</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>VIET NAM</span>
+            <span style={{ color: '#00205c' }}>pkucpkam</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>TOEIC</span>
           </div>
           <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Result</div>
         </header>
@@ -329,7 +329,7 @@ export default function TestSimulator({ params, searchParams }) {
     <div className="iig-page">
       <header className="iig-header">
         <div className="iig-header-left">
-          <span style={{ color: '#00205c' }}>IIG</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>VIET NAM</span>
+          <span style={{ color: '#00205c' }}>pkucpkam</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>TOEIC</span>
         </div>
         <div className="iig-header-center">
           {currentQInfo.sectionTitle}: Questions {currentQuestionIndex + 1} of {allQuestions.length}
