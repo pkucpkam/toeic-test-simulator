@@ -30,4 +30,20 @@ public class PracticeApplication {
 			}
 		};
 	}
+
+	@org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+	public void openBrowser() {
+		try {
+			String os = System.getProperty("os.name").toLowerCase();
+			if (os.contains("win")) {
+				Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler http://localhost:8080");
+			} else if (os.contains("mac")) {
+				Runtime.getRuntime().exec("open http://localhost:8080");
+			} else if (os.contains("nix") || os.contains("nux")) {
+				Runtime.getRuntime().exec("xdg-open http://localhost:8080");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }

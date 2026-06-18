@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:sqlite:toeic.db
+    url: jdbc:sqlite:build/toeic-test.db
     driver-class-name: org.sqlite.JDBC
   jpa:
     hibernate:
@@ -8,8 +8,6 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
-        format_sql: true
-    show-sql: true
   sql:
     init:
       mode: always
@@ -18,8 +16,7 @@ spring:
       encoding: UTF-8
   flyway:
     enabled: false
-
 jwt:
-  secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
-  access-token-expiration-ms: 3600000 # 1 hour
-  refresh-token-expiration-ms: 604800000 # 7 days
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  access-token-expiration-ms: 3600000
+  refresh-token-expiration-ms: 604800000

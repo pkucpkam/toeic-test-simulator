@@ -13,10 +13,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Map /api/media/** to the data/downloads directory
-        Path dataDir = Paths.get("../../data/downloads").toAbsolutePath().normalize();
+        Path dataDir = Paths.get("data/downloads").toAbsolutePath().normalize();
+        if (!java.nio.file.Files.exists(dataDir)) {
+            dataDir = Paths.get("../../data/downloads").toAbsolutePath().normalize();
+        }
         String resourceLocation = "file:" + dataDir.toString() + "/";
         
         registry.addResourceHandler("/api/media/**")
                 .addResourceLocations(resourceLocation);
     }
 }
+

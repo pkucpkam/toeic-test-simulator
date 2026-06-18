@@ -25,9 +25,9 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4")
 	compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
-	runtimeOnly("org.postgresql:postgresql")
+	implementation("org.xerial:sqlite-jdbc:3.45.1.0")
+	implementation("org.hibernate.orm:hibernate-community-dialects:6.5.0.Final")
 	implementation("org.flywaydb:flyway-core")
-	implementation("org.flywaydb:flyway-database-postgresql")
 	annotationProcessor("org.projectlombok:lombok")
 	implementation("io.jsonwebtoken:jjwt-api:0.12.5")
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
@@ -44,3 +44,25 @@ dependencies {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+
+tasks.register<Exec>("buildFrontend") {
+	workingDir = file("../../frontend")
+	commandLine = if (isWindows) {
+		listOf("cmd", "/c", "npm install && npm run build")
+	} else {
+		listOf("sh", "-c", "npm install && npm run build")
+	}
+}
+
+tasks.register<Copy>("copyFrontendToStatic") {
+	dependsOn("buildFrontend")
+	from("../../frontend/out")
+	into("src/main/resources/static")
+}
+
+tasks.named("processResources") {
+	dependsOn("copyFrontendToStatic")
+}
+

@@ -163,7 +163,7 @@ export default function TestSelectionPage() {
                         {tests.map(t => (
                            <div key={t.id} className="premium-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: '1.2rem', fontWeight: '500' }}>{t.title}</span>
-                              <Link href={`/test/${t.id}?mode=full`} className="premium-btn btn-primary">Start</Link>
+                              <Link href={`/test?id=${t.id}&mode=full`} className="premium-btn btn-primary">Start</Link>
                            </div>
                         ))}
                      </div>
@@ -181,7 +181,7 @@ export default function TestSelectionPage() {
                         {partSummaries.map(p => (
                            <div key={p.partId} className="premium-card" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: '1.2rem', fontWeight: '500' }}>{p.testTitle} - Part {selectedPartNum}</span>
-                              <Link href={`/test/${p.testId}?mode=${p.partId}`} className="premium-btn btn-primary" style={{ background: 'var(--secondary)' }}>Practice</Link>
+                              <Link href={`/test?id=${p.testId}&mode=${p.partId}`} className="premium-btn btn-primary" style={{ background: 'var(--secondary)' }}>Practice</Link>
                            </div>
                         ))}
                      </div>

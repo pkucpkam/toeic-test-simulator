@@ -1,24 +1,23 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ListeningPicture, 
   ListeningResponse, 
   ListeningAudioGroup,
   IncompleteSentence,
   ReadingPassageGroup 
-} from '../../../components/QuestionViews';
-import { getUser } from '../../../utils/auth';
-import apiClient from '../../../utils/apiClient';
+} from '../../components/QuestionViews';
+import { getUser } from '../../utils/auth';
+import apiClient from '../../utils/apiClient';
 import './iig-simulator.css';
 
-export default function TestSimulator({ params, searchParams }) {
+function TestSimulatorInner() {
   const router = useRouter();
-  const unwrappedParams = React.use(params);
-  const unwrappedSearchParams = React.use(searchParams);
-  const testId = unwrappedParams.id;
-  const mode = unwrappedSearchParams?.mode || "full";
+  const searchParams = useSearchParams();
+  const testId = searchParams.get('id');
+  const mode = searchParams.get('mode') || "full";
   
   const [attemptId, setAttemptId] = useState(null);
   const [allQuestions, setAllQuestions] = useState([]);
@@ -483,5 +482,13 @@ export default function TestSimulator({ params, searchParams }) {
          </div>
       </footer>
     </div>
+  );
+}
+
+export default function TestSimulator(props) {
+  return (
+    <React.Suspense fallback={<div className="premium-container text-center mt-8"><p>Loading Test Environment...</p></div>}>
+      <TestSimulatorInner {...props} />
+    </React.Suspense>
   );
 }
