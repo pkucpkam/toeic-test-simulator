@@ -1,5 +1,6 @@
 package com.toeic.practice.controller;
 
+import com.toeic.practice.dto.AttemptResultDto;
 import com.toeic.practice.dto.StartAttemptRequest;
 import com.toeic.practice.dto.SubmitAttemptRequest;
 import com.toeic.practice.entity.User;
@@ -23,7 +24,7 @@ public class AttemptController {
             @RequestBody StartAttemptRequest request,
             @AuthenticationPrincipal User user) {
         Long attemptId = attemptService.startAttempt(request, user);
-        return ResponseEntity.ok(Map.of("attemptId", attemptId));
+        return ResponseEntity.ok(Map.of("id", attemptId));
     }
 
     @PostMapping("/{attemptId}/submit")
@@ -33,5 +34,12 @@ public class AttemptController {
             @AuthenticationPrincipal User user) {
         attemptService.submitAttempt(attemptId, request, user);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{attemptId}/result")
+    public ResponseEntity<AttemptResultDto> getAttemptResult(
+            @PathVariable Long attemptId,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(attemptService.getAttemptResult(attemptId, user));
     }
 }

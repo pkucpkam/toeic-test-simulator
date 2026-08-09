@@ -1,6 +1,7 @@
 package com.toeic.practice.controller;
 
 import com.toeic.practice.dto.QuestionGroupDto;
+import com.toeic.practice.dto.QuestionGroupSummaryDto;
 import com.toeic.practice.dto.TestDto;
 import com.toeic.practice.dto.TestPartDto;
 import com.toeic.practice.dto.TestPartSummaryDto;
@@ -48,5 +49,10 @@ public class TestController {
     @GetMapping("/parts/{partId}/questions")
     public ResponseEntity<List<QuestionGroupDto>> getQuestionsForPart(@PathVariable Long partId) {
         return ResponseEntity.ok(testService.getQuestionsForPart(partId));
+    }
+
+    @GetMapping("/parts/{partId}/groups")
+    public ResponseEntity<List<QuestionGroupSummaryDto>> getGroupsSummaryForPart(@PathVariable Long partId) {
+        return ResponseEntity.ok(testService.getGroupsSummaryForPart(partId));
     }
 }

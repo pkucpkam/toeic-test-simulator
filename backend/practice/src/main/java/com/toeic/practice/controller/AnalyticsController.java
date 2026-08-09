@@ -1,6 +1,6 @@
 package com.toeic.practice.controller;
 
-import com.toeic.practice.dto.AttemptHistoryDto;
+import com.toeic.practice.dto.*;
 import com.toeic.practice.entity.User;
 import com.toeic.practice.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
@@ -22,5 +22,20 @@ public class AnalyticsController {
     @GetMapping("/history")
     public ResponseEntity<List<AttemptHistoryDto>> getHistory(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(analyticsService.getHistory(user));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<AnalyticsStatsDto> getStats(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(analyticsService.getStats(user));
+    }
+
+    @GetMapping("/score-history")
+    public ResponseEntity<List<ScoreHistoryDto>> getScoreHistory(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(analyticsService.getScoreHistory(user));
+    }
+
+    @GetMapping("/part-accuracy")
+    public ResponseEntity<List<PartAccuracyDto>> getPartAccuracy(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(analyticsService.getPartAccuracy(user));
     }
 }

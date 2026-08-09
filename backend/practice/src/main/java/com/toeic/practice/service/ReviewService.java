@@ -1,5 +1,6 @@
 package com.toeic.practice.service;
 
+import com.toeic.practice.dto.BookmarkDto;
 import com.toeic.practice.dto.BookmarkRequestDto;
 import com.toeic.practice.dto.IncorrectQuestionDto;
 import com.toeic.practice.dto.QuestionDto;
@@ -26,7 +27,6 @@ public class ReviewService {
 
     @Transactional
     public void toggleBookmark(BookmarkRequestDto request, User user) {
-        // Optional: check if it already exists and remove it (toggle), or just add/update
         List<UserBookmark> existingBookmarks = bookmarkRepository.findByUserId(user.getId());
         for (UserBookmark bookmark : existingBookmarks) {
             if (bookmark.getQuestion().getId().equals(request.getQuestionId())) {
@@ -46,22 +46,25 @@ public class ReviewService {
         bookmarkRepository.save(bookmark);
     }
 
+    public List<BookmarkDto> getBookmarks(User user) {
+        return bookmarkRepository.findByUserId(user.getId()).stream()
+                .map(bm -> {
+                    Question q = bm.getQuestion();
+                    QuestionDto qDto = mapToQuestionDto(q);
+                    return BookmarkDto.builder()
+                            .id(bm.getId())
+                            .note(bm.getNote())
+                            .question(qDto)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
     public List<IncorrectQuestionDto> getIncorrectQuestions(User user) {
         return incorrectQuestionRepository.findByUserId(user.getId()).stream()
                 .map(iq -> {
                     Question q = iq.getQuestion();
-                    QuestionDto qDto = QuestionDto.builder()
-                            .id(q.getId())
-                            .questionNumber(q.getQuestionNumber())
-                            .questionText(q.getQuestionText())
-                            .optionA(q.getOptionA())
-                            .optionB(q.getOptionB())
-                            .optionC(q.getOptionC())
-                            .optionD(q.getOptionD())
-                            .correctAnswer(q.getCorrectAnswer())
-                            .explanation(q.getExplanation())
-                            .build();
-
+                    QuestionDto qDto = mapToQuestionDto(q);
                     return IncorrectQuestionDto.builder()
                             .id(iq.getId())
                             .attemptId(iq.getAttempt().getId())
@@ -69,5 +72,19 @@ public class ReviewService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    private QuestionDto mapToQuestionDto(Question q) {
+        return QuestionDto.builder()
+                .id(q.getId())
+                .questionNumber(q.getQuestionNumber())
+                .questionText(q.getQuestionText())
+                .optionA(q.getOptionA())
+                .optionB(q.getOptionB())
+                .optionC(q.getOptionC())
+                .optionD(q.getOptionD())
+                .correctAnswer(q.getCorrectAnswer())
+                .explanation(q.getExplanation())
+                .build();
     }
 }

@@ -51,9 +51,22 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
       )}
 
       {isChecked && question.explanation && (
-        <div className="iig-explanation-box" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
-          <strong>Explanation: </strong><br/>
-          {question.explanation}
+        <div className="iig-explanation-box" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', marginTop: '1rem' }}>
+          <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: '#10b981' }}> Explanation:</div>
+          {question.explanation.split('\n').map((line, i) => {
+            const match = line.trim().match(/^([A-D])\s+(.*)/);
+            if (match) {
+              return (
+                <div key={i} style={{ marginBottom: '0.5rem', display: 'flex', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 'bold', background: 'rgba(16,185,129,0.2)', color: '#065f46', padding: '0 6px', borderRadius: '4px', height: 'fit-content' }}>
+                    {match[1]}
+                  </span>
+                  <span>{match[2]}</span>
+                </div>
+              );
+            }
+            return <div key={i} style={{ marginBottom: '0.5rem' }}>{line}</div>;
+          })}
         </div>
       )}
     </div>
