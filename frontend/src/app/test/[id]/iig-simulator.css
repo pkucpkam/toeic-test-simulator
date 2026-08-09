@@ -63,6 +63,17 @@
   gap: 6px;
 }
 
+.iig-timer-box.timer-urgent {
+  background-color: #ffebee;
+  color: #c62828;
+  animation: timerPulse 1s infinite;
+}
+
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .iig-submit-btn {
   background-color: #f58220;
   color: white;

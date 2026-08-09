@@ -1,3 +1,9 @@
 data/
 database/
 backend/practice/src/main/resources/db/
+
+# Environments
+.env
+.env.*
+*.env
+!.env.example

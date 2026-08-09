@@ -1,5 +1,6 @@
 package com.toeic.practice.controller;
 
+import com.toeic.practice.dto.BookmarkDto;
 import com.toeic.practice.dto.BookmarkRequestDto;
 import com.toeic.practice.dto.IncorrectQuestionDto;
 import com.toeic.practice.entity.User;
@@ -24,6 +25,11 @@ public class ReviewController {
             @AuthenticationPrincipal User user) {
         reviewService.toggleBookmark(request, user);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/bookmarks")
+    public ResponseEntity<List<BookmarkDto>> getBookmarks(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(reviewService.getBookmarks(user));
     }
 
     @GetMapping("/incorrect")
