@@ -24,16 +24,25 @@ public class AnalyticsService {
     public List<AttemptHistoryDto> getHistory(User user) {
         return attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId())
                 .stream()
-                .map(attempt -> AttemptHistoryDto.builder()
-                        .id(attempt.getId())
-                        .testTitle(attempt.getTest() != null ? attempt.getTest().getTitle() : "Unknown")
-                        .attemptType(attempt.getAttemptType())
-                        .totalScore(attempt.getTotalScore())
-                        .totalCorrect(attempt.getTotalCorrect())
-                        .durationSeconds(attempt.getDurationSeconds())
-                        .startedAt(attempt.getStartedAt())
-                        .completedAt(attempt.getCompletedAt())
-                        .build())
+                .map(attempt -> {
+                    Long testId = attempt.getTest() != null ? attempt.getTest().getId()
+                            : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
+                                    ? attempt.getTestPart().getTest().getId() : 1L);
+                    String title = attempt.getTest() != null ? attempt.getTest().getTitle()
+                            : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
+                                    ? attempt.getTestPart().getTest().getTitle() : "Unknown");
+                    return AttemptHistoryDto.builder()
+                            .id(attempt.getId())
+                            .testId(testId)
+                            .testTitle(title)
+                            .attemptType(attempt.getAttemptType())
+                            .totalScore(attempt.getTotalScore())
+                            .totalCorrect(attempt.getTotalCorrect())
+                            .durationSeconds(attempt.getDurationSeconds())
+                            .startedAt(attempt.getStartedAt())
+                            .completedAt(attempt.getCompletedAt())
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 

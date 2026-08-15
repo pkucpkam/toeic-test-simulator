@@ -1,8 +1,25 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import apiClient from '@/utils/apiClient';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import 'react-quill-new/dist/quill.snow.css';
+
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
+
+// Wrapper ổn định cho Quill editor, tránh lặp setState vô hạn
+function RichTextEditor({ value, onChange }) {
+  const onChangeSafe = useCallback((content) => {
+    onChange(content);
+  }, [onChange]);
+
+  return (
+    <div style={{ backgroundColor: '#fff' }}>
+      <ReactQuill theme="snow" value={value || ''} onChange={onChangeSafe} />
+    </div>
+  );
+}
 
 export default function EditTestPage() {
   const { id } = useParams();
@@ -72,6 +89,14 @@ export default function EditTestPage() {
     }
   };
 
+  // Stable field updater – does NOT close over editingItem so it never goes stale
+  const updateField = useCallback((key, value) => {
+    setEditingItem(prev => ({
+      ...prev,
+      data: { ...prev.data, [key]: value }
+    }));
+  }, []);
+
   const renderEditModal = () => {
     if (!editingItem) return null;
     
@@ -92,40 +117,40 @@ export default function EditTestPage() {
           <form onSubmit={handleSave}>
             {editingItem.type === 'test' && (
               <>
-                <Field label="Title" value={editingItem.data.title} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, title: v }})} />
-                <Field label="Year" type="number" value={editingItem.data.year} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, year: parseInt(v) }})} />
-                <Field label="Full Audio URL" value={editingItem.data.fullAudioUrl} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, fullAudioUrl: v }})} />
+                <Field label="Title" value={editingItem.data.title} onChange={v => updateField('title', v)} />
+                <Field label="Year" type="number" value={editingItem.data.year} onChange={v => updateField('year', parseInt(v))} />
+                <Field label="Full Audio URL" value={editingItem.data.fullAudioUrl} onChange={v => updateField('fullAudioUrl', v)} />
               </>
             )}
 
             {editingItem.type === 'part' && (
               <>
-                <Field label="Part Name" value={editingItem.data.name} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, name: v }})} />
+                <Field label="Part Name" value={editingItem.data.name} onChange={v => updateField('name', v)} />
               </>
             )}
 
             {editingItem.type === 'group' && (
               <>
-                <Field label="Audio URL" value={editingItem.data.audioUrl} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, audioUrl: v }})} />
-                <Field label="Image URL" value={editingItem.data.imageUrl} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, imageUrl: v }})} />
-                <Field label="Passage Text" isTextArea value={editingItem.data.passageText} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, passageText: v }})} />
-                <Field label="Transcript" isTextArea value={editingItem.data.transcript} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, transcript: v }})} />
+                <Field label="Audio URL" value={editingItem.data.audioUrl} onChange={v => updateField('audioUrl', v)} />
+                <Field label="Image URL" value={editingItem.data.imageUrl} onChange={v => updateField('imageUrl', v)} />
+                <Field label="Passage Text" isRichText value={editingItem.data.passageText} onChange={v => updateField('passageText', v)} />
+                <Field label="Transcript" isRichText value={editingItem.data.transcript} onChange={v => updateField('transcript', v)} />
               </>
             )}
 
             {editingItem.type === 'question' && (
               <>
-                <Field label="Question Text" isTextArea value={editingItem.data.questionText} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, questionText: v }})} />
-                <Field label="Option A" value={editingItem.data.optionA} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, optionA: v }})} />
-                <Field label="Option B" value={editingItem.data.optionB} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, optionB: v }})} />
-                <Field label="Option C" value={editingItem.data.optionC} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, optionC: v }})} />
-                <Field label="Option D" value={editingItem.data.optionD} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, optionD: v }})} />
+                <Field label="Question Text" isTextArea value={editingItem.data.questionText} onChange={v => updateField('questionText', v)} />
+                <Field label="Option A" value={editingItem.data.optionA} onChange={v => updateField('optionA', v)} />
+                <Field label="Option B" value={editingItem.data.optionB} onChange={v => updateField('optionB', v)} />
+                <Field label="Option C" value={editingItem.data.optionC} onChange={v => updateField('optionC', v)} />
+                <Field label="Option D" value={editingItem.data.optionD} onChange={v => updateField('optionD', v)} />
                 
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#374151' }}>Correct Answer</label>
                   <select 
                     value={editingItem.data.correctAnswer} 
-                    onChange={e => setEditingItem({ ...editingItem, data: { ...editingItem.data, correctAnswer: e.target.value }})}
+                    onChange={e => updateField('correctAnswer', e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#fff' }}
                   >
                     <option value="A">A</option>
@@ -135,7 +160,7 @@ export default function EditTestPage() {
                   </select>
                 </div>
                 
-                <Field label="Explanation" isTextArea value={editingItem.data.explanation} onChange={v => setEditingItem({ ...editingItem, data: { ...editingItem.data, explanation: v }})} />
+                <Field label="Explanation" isRichText value={editingItem.data.explanation} onChange={v => updateField('explanation', v)} />
               </>
             )}
 
@@ -217,7 +242,7 @@ export default function EditTestPage() {
                           <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '8px', fontSize: '0.9rem', color: '#4b5563' }}>
                             {group.audioUrl && <div style={{ marginBottom: '8px' }}>🎵 Audio: {group.audioUrl}</div>}
                             {group.imageUrl && <div style={{ marginBottom: '8px' }}>🖼️ Image: {group.imageUrl}</div>}
-                            {group.passageText && <div>📄 {group.passageText.substring(0, 100)}...</div>}
+                            {group.passageText && <div>📄 <span dangerouslySetInnerHTML={{ __html: group.passageText.substring(0, 100) + '...' }} /></div>}
                           </div>
                         )}
 
@@ -260,7 +285,7 @@ export default function EditTestPage() {
 }
 
 // Simple form field component
-function Field({ label, value, onChange, type = 'text', isTextArea = false }) {
+function Field({ label, value, onChange, type = 'text', isTextArea = false, isRichText = false }) {
   const commonStyle = {
     width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', 
     backgroundColor: '#fff', fontSize: '0.95rem', color: '#111827', fontFamily: 'inherit', boxSizing: 'border-box'
@@ -269,7 +294,9 @@ function Field({ label, value, onChange, type = 'text', isTextArea = false }) {
   return (
     <div style={{ marginBottom: '16px' }}>
       <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', color: '#374151' }}>{label}</label>
-      {isTextArea ? (
+      {isRichText ? (
+        <RichTextEditor value={value} onChange={onChange} />
+      ) : isTextArea ? (
         <textarea 
           value={value || ''} 
           onChange={e => onChange(e.target.value)} 

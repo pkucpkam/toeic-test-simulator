@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @Builder
 public class AttemptHistoryDto {
     private Long id;
+    private Long testId;
     private String testTitle;
     private String attemptType;
     private Integer totalScore;

@@ -22,6 +22,7 @@ export default function TestSimulator({ params, searchParams }) {
   const mode = unwrappedSearchParams?.mode || "full";
   const miniPartId = unwrappedSearchParams?.partId ? parseInt(unwrappedSearchParams.partId) : null;
   const miniGroupId = unwrappedSearchParams?.groupId ? parseInt(unwrappedSearchParams.groupId) : null;
+  const viewAttemptId = unwrappedSearchParams?.attemptId ? parseInt(unwrappedSearchParams.attemptId) : null;
 
   const isMini = mode === 'mini';
   const isFull = mode === 'full';
@@ -60,6 +61,16 @@ export default function TestSimulator({ params, searchParams }) {
       }
 
       try {
+        if (viewAttemptId) {
+          setAttemptId(viewAttemptId);
+          const resultRes = await apiClient.get(`/attempts/${viewAttemptId}/result`);
+          setScoreData(resultRes.data);
+          setIsSubmitted(true);
+          setShowResultDetail(true);
+          setLoading(false);
+          return;
+        }
+
         // Determine attempt type and part
         let attemptType = 'FULL';
         let attemptPartId = null;
@@ -308,7 +319,7 @@ export default function TestSimulator({ params, searchParams }) {
           </div>
 
           {/* Score cards */}
-          {isFull ? (
+          {(scoreData.attemptType === 'FULL' || isFull) ? (
             <>
               <div className="iig-score-card">
                 <div className="iig-score-label">Total Correct: {totalCorrect} / {totalQuestions}</div>
@@ -418,7 +429,8 @@ export default function TestSimulator({ params, searchParams }) {
                 {(scoreData.questionResults || []).map((q, idx) => (
                   <div key={q.questionId} style={{
                     background: 'white', border: `2px solid ${q.isCorrect ? '#4caf50' : (q.selectedOption ? '#f44336' : '#9e9e9e')}`,
-                    borderRadius: '8px', padding: '1.25rem', fontSize: '0.9rem'
+                    borderRadius: '8px', padding: '1.25rem', fontSize: '0.9rem',
+                    overflowWrap: 'break-word', wordBreak: 'normal'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                       <span style={{ fontWeight: 700, color: '#00205c' }}>Q{q.questionNumber} · {q.partTitle}</span>
@@ -430,7 +442,7 @@ export default function TestSimulator({ params, searchParams }) {
                       </span>
                     </div>
                     {q.questionText && (
-                      <p style={{ marginBottom: '0.75rem', color: '#333', fontWeight: 500 }}>{q.questionText}</p>
+                      <p style={{ marginBottom: '0.75rem', color: '#333', fontWeight: 500, overflowWrap: 'break-word', wordBreak: 'normal' }}>{q.questionText}</p>
                     )}
                     <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                       {['A', 'B', 'C', 'D'].map(letter => {
@@ -444,7 +456,8 @@ export default function TestSimulator({ params, searchParams }) {
                             background: isCorrectAns ? '#e8f5e9' : isUserAns ? '#ffebee' : '#f5f5f5',
                             border: `1px solid ${isCorrectAns ? '#4caf50' : isUserAns ? '#f44336' : '#e0e0e0'}`,
                             fontWeight: isCorrectAns || isUserAns ? 700 : 400,
-                            color: isCorrectAns ? '#2e7d32' : isUserAns ? '#c62828' : '#555'
+                            color: isCorrectAns ? '#2e7d32' : isUserAns ? '#c62828' : '#555',
+                            overflowWrap: 'break-word', wordBreak: 'normal', maxWidth: '100%'
                           }}>
                             ({letter}) {optText}
                             {isCorrectAns && ' ✓'}
@@ -456,22 +469,23 @@ export default function TestSimulator({ params, searchParams }) {
                     {q.explanation && (
                       <div style={{
                         background: '#e8f5e9', border: '1px solid #c8e6c9', padding: '1rem',
-                        borderRadius: '8px', color: '#2e7d32', fontSize: '0.9rem', marginTop: '0.75rem'
+                        borderRadius: '8px', color: '#2e7d32', fontSize: '0.9rem', marginTop: '0.75rem',
+                        overflowWrap: 'break-word', wordBreak: 'normal'
                       }}>
                         <div style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '0.95rem' }}>💡 Explanation:</div>
                         {q.explanation.split('\n').map((line, i) => {
                           const match = line.trim().match(/^([A-D])\s+(.*)/);
                           if (match) {
                             return (
-                              <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem' }}>
-                                <span style={{ fontWeight: 'bold', background: '#c8e6c9', color: '#1b5e20', padding: '0 6px', borderRadius: '4px', height: 'fit-content' }}>
+                              <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem', overflowWrap: 'break-word', wordBreak: 'normal' }}>
+                                <span style={{ fontWeight: 'bold', background: '#c8e6c9', color: '#1b5e20', padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0 }}>
                                   {match[1]}
                                 </span>
-                                <span>{match[2]}</span>
+                                <span style={{ flex: 1, minWidth: 0, overflowWrap: 'break-word', wordBreak: 'normal' }}>{match[2]}</span>
                               </div>
                             );
                           }
-                          return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5' }}>{line}</div>;
+                          return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', overflowWrap: 'break-word', wordBreak: 'normal' }}>{line}</div>;
                         })}
                       </div>
                     )}
@@ -515,8 +529,16 @@ export default function TestSimulator({ params, searchParams }) {
     setSelections(prev => ({ ...prev, [qId]: option }));
   };
 
-  const handleCheckAnswer = (qId) => {
-    setCheckedQuestions(prev => ({ ...prev, [qId]: true }));
+  const handleCheckAnswer = (qIds) => {
+    if (Array.isArray(qIds)) {
+      setCheckedQuestions(prev => {
+        const next = { ...prev };
+        qIds.forEach(id => { next[id] = true; });
+        return next;
+      });
+    } else {
+      setCheckedQuestions(prev => ({ ...prev, [qIds]: true }));
+    }
   };
 
   const handleToggleReview = () => {
