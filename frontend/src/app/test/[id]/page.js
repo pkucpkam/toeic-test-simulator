@@ -40,6 +40,7 @@ export default function TestSimulator({ params, searchParams }) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [timeLeft, setTimeLeft] = useState(7200);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [scoreData, setScoreData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [testTitle, setTestTitle] = useState('');
@@ -181,6 +182,8 @@ export default function TestSimulator({ params, searchParams }) {
 
   const handleSubmit = async () => {
     if (!attemptId) return;
+    if (isSubmitting) return;  // prevent duplicate submission
+    setIsSubmitting(true);
     try {
       const durationSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
 
@@ -213,6 +216,7 @@ export default function TestSimulator({ params, searchParams }) {
     } catch (err) {
       console.error("Submit failed", err);
       alert("Failed to submit test.");
+      setIsSubmitting(false);  // allow retry on error
     }
   };
 
@@ -738,11 +742,44 @@ export default function TestSimulator({ params, searchParams }) {
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.5rem' }}>
               <button className="iig-modal-btn iig-btn-review" onClick={() => setShowSubmitConfirm(false)}>Review</button>
-              <button className="iig-modal-btn iig-btn-finish" onClick={() => { setShowSubmitConfirm(false); handleSubmit(); }}>
-                Finish Test
+              <button
+                className="iig-modal-btn iig-btn-finish"
+                disabled={isSubmitting}
+                onClick={() => { setShowSubmitConfirm(false); handleSubmit(); }}
+                style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Finish Test'}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Submitting overlay ── */}
+      {isSubmitting && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0, 32, 92, 0.72)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          gap: '1.25rem'
+        }}>
+          <div style={{
+            width: '56px', height: '56px',
+            border: '5px solid rgba(255,255,255,0.25)',
+            borderTop: '5px solid #f58220',
+            borderRadius: '50%',
+            animation: 'iig-spin 0.85s linear infinite'
+          }} />
+          <p style={{
+            color: '#fff', fontSize: '1.15rem',
+            fontWeight: 700, letterSpacing: '0.03em',
+            margin: 0
+          }}>Submitting your answers…</p>
+          <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.9rem', margin: 0 }}>
+            Please wait, do not close this page.
+          </p>
         </div>
       )}
 

@@ -124,9 +124,32 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
       )}
 
       {isChecked && question.explanation && (
-        <div className="iig-explanation-box" style={{ lineHeight: '1.6', marginTop: '1rem', overflowWrap: 'normal', wordBreak: 'normal' }}>
-          <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: '#10b981' }}> Explanation:</div>
-          <PassageRenderer content={question.explanation} />
+        <div style={{
+          marginTop: '1rem', padding: '0.875rem 1rem',
+          background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+          borderRadius: '8px', fontSize: '0.875rem', color: '#1a2e3b'
+        }}>
+          <div style={{ fontWeight: 700, color: '#10b981', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+            💡 Explanation:
+          </div>
+          {question.explanation.split('\n').map((line, i) => {
+            const match = line.trim().match(/^([A-D])\s+(.*)/);
+            if (match) {
+              return (
+                <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem' }}>
+                  <span style={{
+                    fontWeight: 'bold', background: 'rgba(16,185,129,0.2)', color: '#065f46',
+                    padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0
+                  }}>
+                    {match[1]}
+                  </span>
+                  <span>{match[2]}</span>
+                </div>
+              );
+            }
+            if (!line.trim()) return null;
+            return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.6' }}>{line}</div>;
+          })}
         </div>
       )}
     </div>

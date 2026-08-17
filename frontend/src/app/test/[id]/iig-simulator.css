@@ -1,5 +1,9 @@
 /* iig-simulator.css */
 
+@keyframes iig-spin {
+  to { transform: rotate(360deg); }
+}
+
 .iig-page {
   background-color: #f8f9fa;
   color: #333;
