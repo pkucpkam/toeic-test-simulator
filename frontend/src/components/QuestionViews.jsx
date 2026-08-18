@@ -81,7 +81,7 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
   return (
     <div className="iig-option-list" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
       {optionsToRender.map((opt, i) => {
-        const optionLabel = hideText ? opt.substring(0, 3) : opt;
+        const optionLabel = (hideText && !isChecked) ? opt.substring(0, 3) : opt;
         const isSelected = selections[question.id] === opt;
         
         let labelStyle = {};
@@ -156,24 +156,82 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
   );
 };
 
+// Transcript / Translation container displayed when answer is checked
+function GroupTranscriptView({ passageText, transcript }) {
+  if (!passageText && !transcript) return null;
+
+  return (
+    <div style={{
+      marginTop: '1.25rem',
+      padding: '1rem 1.25rem',
+      background: 'rgba(59, 130, 246, 0.04)',
+      border: '1px solid rgba(59, 130, 246, 0.2)',
+      borderRadius: '8px',
+      fontSize: '0.9rem',
+      color: '#1a2e3b'
+    }}>
+      {passageText && (
+        <div style={{ marginBottom: transcript ? '1.25rem' : 0 }}>
+          <div style={{
+            fontWeight: 700,
+            color: '#1d4ed8',
+            marginBottom: '0.5rem',
+            fontSize: '0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem'
+          }}>
+            <span>📝</span> English Transcript:
+          </div>
+          <PassageRenderer content={passageText} />
+        </div>
+      )}
+
+      {transcript && (
+        <div style={{
+          borderTop: passageText ? '1px dashed rgba(59, 130, 246, 0.25)' : 'none',
+          paddingTop: passageText ? '1rem' : 0
+        }}>
+          <div style={{
+            fontWeight: 700,
+            color: '#0369a1',
+            marginBottom: '0.5rem',
+            fontSize: '0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem'
+          }}>
+            <span>🇻🇳</span> Dịch tiếng Việt:
+          </div>
+          <PassageRenderer content={transcript} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ListeningPicture({ question, selectedOption, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
+  const isChecked = checkedQuestions && checkedQuestions[question.id];
+  const group = question.groupData;
+
   return (
     <>
       <div className="iig-col-left">
         <div className="iig-instruction">{question.instruction}</div>
         <div style={{ textAlign: 'center' }}>
-          {question.groupData?.imageUrl ? (
+          {group?.imageUrl ? (
              /* eslint-disable-next-line @next/next/no-img-element */
-             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${question.groupData.imageUrl}`} alt="Question visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
+             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${group.imageUrl}`} alt="Question visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
           ) : (
              <div style={{ fontStyle: 'italic', color: '#777' }}>Image not provided</div>
           )}
         </div>
-        {mode !== 'full' && question.groupData?.audioUrl && (
+        {mode !== 'full' && group?.audioUrl && (
            <div style={{ marginTop: '1.5rem' }}>
-              <audio src={question.groupData.audioUrl.startsWith('http') ? question.groupData.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${question.groupData.audioUrl}`} controls style={{ width: '100%' }} />
+              <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
            </div>
         )}
+        {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
@@ -185,15 +243,19 @@ export function ListeningPicture({ question, selectedOption, onSelectOption, mod
 }
 
 export function ListeningResponse({ question, selectedOption, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
+  const isChecked = checkedQuestions && checkedQuestions[question.id];
+  const group = question.groupData;
+
   return (
     <>
       <div className="iig-col-left">
         <div className="iig-instruction">{question.instruction}</div>
-        {mode !== 'full' && question.groupData?.audioUrl && (
+        {mode !== 'full' && group?.audioUrl && (
            <div style={{ marginTop: '1rem' }}>
-              <audio src={question.groupData.audioUrl.startsWith('http') ? question.groupData.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${question.groupData.audioUrl}`} controls style={{ width: '100%' }} />
+              <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
            </div>
         )}
+        {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
@@ -205,6 +267,7 @@ export function ListeningResponse({ question, selectedOption, onSelectOption, mo
 }
 
 export function ListeningAudioGroup({ questions, group, selections, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
+  const isChecked = questions.some(q => checkedQuestions && checkedQuestions[q.id]);
   const allChecked = questions.every(q => checkedQuestions && checkedQuestions[q.id]);
   const allAnswered = questions.every(q => selections && selections[q.id]);
   const answeredCount = questions.filter(q => selections && selections[q.id]).length;
@@ -226,6 +289,7 @@ export function ListeningAudioGroup({ questions, group, selections, onSelectOpti
               <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
            </div>
         )}
+        {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
@@ -276,6 +340,7 @@ export function IncompleteSentence({ question, selectedOption, onSelectOption, m
 }
 
 export function ReadingPassageGroup({ questions, group, selections, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
+  const isChecked = questions.some(q => checkedQuestions && checkedQuestions[q.id]);
   const allChecked = questions.every(q => checkedQuestions && checkedQuestions[q.id]);
   const allAnswered = questions.every(q => selections && selections[q.id]);
   const answeredCount = questions.filter(q => selections && selections[q.id]).length;
@@ -293,6 +358,9 @@ export function ReadingPassageGroup({ questions, group, selections, onSelectOpti
              "Passage text not available."
            )}
         </div>
+        {isChecked && group?.transcript && (
+          <GroupTranscriptView transcript={group.transcript} />
+        )}
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
