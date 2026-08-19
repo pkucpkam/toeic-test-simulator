@@ -31,9 +31,12 @@ export default function DashboardPage() {
           apiClient.get('/analytics/score-history'),
           apiClient.get('/analytics/part-accuracy'),
         ]);
-        setHistory(histRes.data);
+        const histData = Array.isArray(histRes.data) ? histRes.data : (histRes.data?.content || []);
+        const scoreHistData = Array.isArray(scoreHistRes.data) ? scoreHistRes.data : (scoreHistRes.data?.content || []);
+
+        setHistory(histData);
         setStats(statsRes.data);
-        setScoreHistory(scoreHistRes.data.slice(0, 20).reverse()); // chronological, last 20
+        setScoreHistory(scoreHistData.slice(0, 20).reverse());
         setPartAccuracy(partAccRes.data);
       } catch (err) {
         console.error("Error fetching dashboard data", err);
@@ -246,7 +249,7 @@ export default function DashboardPage() {
               <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left' }}>
                 <thead>
                   <tr>
-                    {['Test', 'Type', 'Date', 'Duration', 'Correct', 'Accuracy'].map(h => (
+                    {['Test', 'Type', 'Date', 'Duration', 'Correct', 'Accuracy', 'Action'].map(h => (
                       <th key={h} style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)' }}>{h}</th>
                     ))}
                   </tr>
@@ -260,8 +263,10 @@ export default function DashboardPage() {
                       ? Math.round(attempt.totalCorrect / (attempt.totalCorrect + (attempt.totalIncorrect || 0)) * 100)
                       : null;
                     return (
-                      <tr key={attempt.id} style={{ transition: 'background 0.1s' }}
-                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                      <tr key={attempt.id}
+                        onClick={() => router.push(`/test/${attempt.testId || 1}?attemptId=${attempt.id}`)}
+                        style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                        onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
                         onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', fontWeight: 500 }}>{attempt.testTitle}</td>
                         <td style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -286,6 +291,9 @@ export default function DashboardPage() {
                           {acc != null ? (
                             <span style={{ color: acc >= 70 ? '#4ade80' : acc >= 40 ? '#fbbf24' : '#f87171' }}>{acc}%</span>
                           ) : '—'}
+                        </td>
+                        <td style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: '#60a5fa', fontSize: '0.85rem', fontWeight: 600 }}>Xem lại ➔</span>
                         </td>
                       </tr>
                     );

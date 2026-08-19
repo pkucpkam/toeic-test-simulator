@@ -1,5 +1,9 @@
 /* iig-simulator.css */
 
+@keyframes iig-spin {
+  to { transform: rotate(360deg); }
+}
+
 .iig-page {
   background-color: #f8f9fa;
   color: #333;
@@ -97,14 +101,53 @@
   gap: 1rem;
   overflow: hidden;
   height: calc(100vh - 120px); /* 60px header + 60px footer */
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .iig-col-left, .iig-col-right {
   flex: 1;
+  min-width: 0;
   background-color: white;
   border: 1px solid #e0e0e0;
+  border-radius: 6px;
   padding: 1.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.iig-col-single {
+  flex: 1;
+  min-width: 0;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 2rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.iig-passage-box {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 1.5rem;
+  line-height: 1.65;
+  font-size: 0.95rem;
+  background-color: #fafafa;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .iig-instruction {
@@ -112,6 +155,8 @@
   font-weight: 600;
   font-size: 1.1rem;
   margin-bottom: 1.5rem;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .iig-question-header {
@@ -123,22 +168,38 @@
   padding-bottom: 0.5rem;
 }
 
+.iig-question-text {
+  margin-bottom: 1rem;
+  font-weight: bold;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #222;
+  overflow-wrap: break-word;
+  word-break: normal;
+  max-width: 100%;
+}
+
 /* Options */
 .iig-option-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-width: 100%;
 }
 
 .iig-option-label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   padding: 12px 16px;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
   cursor: pointer;
   background-color: white;
   transition: background-color 0.2s;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .iig-option-label:hover {
@@ -147,6 +208,8 @@
 
 .iig-option-input {
   margin-right: 12px;
+  margin-top: 3px;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
 }
@@ -154,6 +217,10 @@
 .iig-option-text {
   font-size: 0.95rem;
   color: #333;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* Practice Mode specifics */
@@ -499,4 +566,81 @@
 
 .iig-skill-bullets li {
   margin-bottom: 0.5rem;
+}
+
+/* Rich text content - rendered from Markdown or Quill HTML */
+.rich-text-content {
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: #333;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.rich-text-content * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+}
+
+.rich-text-content p {
+  margin-bottom: 0.75rem;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.rich-text-content p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.rich-text-content table {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block;
+  overflow-x: auto;
+}
+
+.rich-text-content img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.rich-text-content strong {
+  font-weight: 700;
+}
+
+.rich-text-content em {
+  font-style: italic;
+}
+
+.rich-text-content ul,
+.rich-text-content ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.rich-text-content li {
+  margin-bottom: 0.25rem;
+}
+
+.rich-text-content a {
+  color: #004b87;
+  text-decoration: underline;
+}
+
+.rich-text-content blockquote {
+  border-left: 3px solid #e0e0e0;
+  padding-left: 1rem;
+  color: #666;
+  margin: 0.75rem 0;
 }

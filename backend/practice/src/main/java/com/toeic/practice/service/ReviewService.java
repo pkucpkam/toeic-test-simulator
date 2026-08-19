@@ -3,6 +3,7 @@ package com.toeic.practice.service;
 import com.toeic.practice.dto.BookmarkDto;
 import com.toeic.practice.dto.BookmarkRequestDto;
 import com.toeic.practice.dto.IncorrectQuestionDto;
+import com.toeic.practice.dto.PageResponseDto;
 import com.toeic.practice.dto.QuestionDto;
 import com.toeic.practice.entity.Question;
 import com.toeic.practice.entity.User;
@@ -46,32 +47,32 @@ public class ReviewService {
         bookmarkRepository.save(bookmark);
     }
 
-    public List<BookmarkDto> getBookmarks(User user) {
-        return bookmarkRepository.findByUserId(user.getId()).stream()
-                .map(bm -> {
-                    Question q = bm.getQuestion();
-                    QuestionDto qDto = mapToQuestionDto(q);
-                    return BookmarkDto.builder()
-                            .id(bm.getId())
-                            .note(bm.getNote())
-                            .question(qDto)
-                            .build();
-                })
-                .collect(Collectors.toList());
+    public PageResponseDto<BookmarkDto> getBookmarks(User user, int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<com.toeic.practice.entity.UserBookmark> bookmarkPage = bookmarkRepository.findByUserIdOrderByIdDesc(user.getId(), pageable);
+        return com.toeic.practice.dto.PageResponseDto.of(bookmarkPage, bm -> {
+            Question q = bm.getQuestion();
+            QuestionDto qDto = mapToQuestionDto(q);
+            return BookmarkDto.builder()
+                    .id(bm.getId())
+                    .note(bm.getNote())
+                    .question(qDto)
+                    .build();
+        });
     }
 
-    public List<IncorrectQuestionDto> getIncorrectQuestions(User user) {
-        return incorrectQuestionRepository.findByUserId(user.getId()).stream()
-                .map(iq -> {
-                    Question q = iq.getQuestion();
-                    QuestionDto qDto = mapToQuestionDto(q);
-                    return IncorrectQuestionDto.builder()
-                            .id(iq.getId())
-                            .attemptId(iq.getAttempt().getId())
-                            .question(qDto)
-                            .build();
-                })
-                .collect(Collectors.toList());
+    public PageResponseDto<IncorrectQuestionDto> getIncorrectQuestions(User user, int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<com.toeic.practice.entity.UserIncorrectQuestion> incorrectPage = incorrectQuestionRepository.findByUserIdOrderByIdDesc(user.getId(), pageable);
+        return com.toeic.practice.dto.PageResponseDto.of(incorrectPage, iq -> {
+            Question q = iq.getQuestion();
+            QuestionDto qDto = mapToQuestionDto(q);
+            return IncorrectQuestionDto.builder()
+                    .id(iq.getId())
+                    .attemptId(iq.getAttempt().getId())
+                    .question(qDto)
+                    .build();
+        });
     }
 
     private QuestionDto mapToQuestionDto(Question q) {

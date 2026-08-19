@@ -28,12 +28,18 @@ public class ReviewController {
     }
 
     @GetMapping("/bookmarks")
-    public ResponseEntity<List<BookmarkDto>> getBookmarks(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(reviewService.getBookmarks(user));
+    public ResponseEntity<com.toeic.practice.dto.PageResponseDto<BookmarkDto>> getBookmarks(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(reviewService.getBookmarks(user, page, size));
     }
 
     @GetMapping("/incorrect")
-    public ResponseEntity<List<IncorrectQuestionDto>> getIncorrectQuestions(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(reviewService.getIncorrectQuestions(user));
+    public ResponseEntity<com.toeic.practice.dto.PageResponseDto<IncorrectQuestionDto>> getIncorrectQuestions(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(reviewService.getIncorrectQuestions(user, page, size));
     }
 }
