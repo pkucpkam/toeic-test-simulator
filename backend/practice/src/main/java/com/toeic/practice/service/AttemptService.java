@@ -25,6 +25,7 @@ public class AttemptService {
     private final TestRepository testRepository;
     private final TestPartRepository testPartRepository;
     private final QuestionGroupRepository questionGroupRepository;
+    private final UserDashboardStatsService userDashboardStatsService;
 
     @Transactional
     public Long startAttempt(StartAttemptRequest request, User user) {
@@ -115,6 +116,9 @@ public class AttemptService {
         attempt.setTotalScore(totalCorrect);
 
         attemptRepository.save(attempt);
+
+        // Update pre-calculated user dashboard stats
+        userDashboardStatsService.recalculateStats(user);
     }
 
     /**

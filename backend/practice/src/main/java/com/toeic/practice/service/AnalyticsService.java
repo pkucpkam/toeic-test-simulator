@@ -3,12 +3,11 @@ package com.toeic.practice.service;
 import com.toeic.practice.dto.*;
 import com.toeic.practice.entity.TestAttempt;
 import com.toeic.practice.entity.User;
-import com.toeic.practice.entity.UserAnswer;
+import com.toeic.practice.entity.UserDashboardStats;
 import com.toeic.practice.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -17,181 +16,98 @@ import java.util.stream.Collectors;
 public class AnalyticsService {
 
     private final TestAttemptRepository attemptRepository;
-    private final UserAnswerRepository userAnswerRepository;
-    private final QuestionGroupRepository questionGroupRepository;
-    private final TestPartRepository testPartRepository;
+    private final UserDashboardStatsService userDashboardStatsService;
 
-    public List<AttemptHistoryDto> getHistory(User user) {
-        return attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId())
-                .stream()
-                .map(attempt -> {
-                    Long testId = attempt.getTest() != null ? attempt.getTest().getId()
-                            : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
-                                    ? attempt.getTestPart().getTest().getId() : 1L);
-                    String title = attempt.getTest() != null ? attempt.getTest().getTitle()
-                            : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
-                                    ? attempt.getTestPart().getTest().getTitle() : "Unknown");
-                    return AttemptHistoryDto.builder()
-                            .id(attempt.getId())
-                            .testId(testId)
-                            .testTitle(title)
-                            .attemptType(attempt.getAttemptType())
-                            .totalScore(attempt.getTotalScore())
-                            .totalCorrect(attempt.getTotalCorrect())
-                            .durationSeconds(attempt.getDurationSeconds())
-                            .startedAt(attempt.getStartedAt())
-                            .completedAt(attempt.getCompletedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
+    public PageResponseDto<AttemptHistoryDto> getHistory(User user, int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<TestAttempt> attemptPage = attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId(), pageable);
+        return PageResponseDto.of(attemptPage, attempt -> {
+            Long testId = attempt.getTest() != null ? attempt.getTest().getId()
+                    : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
+                            ? attempt.getTestPart().getTest().getId() : 1L);
+            String title = attempt.getTest() != null ? attempt.getTest().getTitle()
+                    : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
+                            ? attempt.getTestPart().getTest().getTitle() : "Unknown");
+            return AttemptHistoryDto.builder()
+                    .id(attempt.getId())
+                    .testId(testId)
+                    .testTitle(title)
+                    .attemptType(attempt.getAttemptType())
+                    .totalScore(attempt.getTotalScore())
+                    .totalCorrect(attempt.getTotalCorrect())
+                    .durationSeconds(attempt.getDurationSeconds())
+                    .startedAt(attempt.getStartedAt())
+                    .completedAt(attempt.getCompletedAt())
+                    .build();
+        });
     }
 
     public AnalyticsStatsDto getStats(User user) {
-        List<TestAttempt> attempts = attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId());
-
-        int totalAttempts = attempts.size();
-        long totalFull = attempts.stream().filter(a -> "FULL".equals(a.getAttemptType())).count();
-        long totalPart = attempts.stream().filter(a -> "PART".equals(a.getAttemptType())).count();
-
-        List<TestAttempt> completed = attempts.stream()
-                .filter(a -> a.getCompletedAt() != null && a.getTotalCorrect() != null)
-                .collect(Collectors.toList());
-
-        double avgScore = completed.stream()
-                .mapToInt(a -> a.getTotalCorrect() != null ? a.getTotalCorrect() : 0)
-                .average().orElse(0.0);
-
-        double avgAccuracy = completed.stream()
-                .filter(a -> a.getTotalCorrect() != null && a.getTotalIncorrect() != null)
-                .mapToDouble(a -> {
-                    int answered = a.getTotalCorrect() + a.getTotalIncorrect();
-                    return answered > 0 ? (double) a.getTotalCorrect() / answered * 100 : 0;
-                })
-                .average().orElse(0.0);
-
-        int bestScore = completed.stream()
-                .mapToInt(a -> a.getTotalCorrect() != null ? a.getTotalCorrect() : 0)
-                .max().orElse(0);
-
-        // Calculate current streak (consecutive distinct days with at least 1 completed attempt)
-        int streak = calculateStreak(completed);
+        UserDashboardStats stats = userDashboardStatsService.getOrCalculateStats(user);
 
         return AnalyticsStatsDto.builder()
-                .totalAttempts(totalAttempts)
-                .totalFullTests((int) totalFull)
-                .totalPartPractices((int) totalPart)
-                .averageScore(Math.round(avgScore * 10.0) / 10.0)
-                .averageAccuracy(Math.round(avgAccuracy * 10.0) / 10.0)
-                .bestScore(bestScore)
-                .currentStreak(streak)
+                .totalAttempts(stats.getTotalAttempts() != null ? stats.getTotalAttempts() : 0)
+                .totalFullTests(stats.getTotalFullTests() != null ? stats.getTotalFullTests() : 0)
+                .totalPartPractices(stats.getTotalPartPractices() != null ? stats.getTotalPartPractices() : 0)
+                .averageScore(stats.getAverageScore() != null ? stats.getAverageScore() : 0.0)
+                .averageAccuracy(stats.getAverageAccuracy() != null ? stats.getAverageAccuracy() : 0.0)
+                .bestScore(stats.getBestScore() != null ? stats.getBestScore() : 0)
+                .currentStreak(stats.getCurrentStreak() != null ? stats.getCurrentStreak() : 0)
                 .build();
     }
 
-    public List<ScoreHistoryDto> getScoreHistory(User user) {
-        return attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId())
-                .stream()
-                .filter(a -> a.getCompletedAt() != null && a.getTotalCorrect() != null)
-                .map(a -> {
-                    int total = (a.getTotalCorrect() != null ? a.getTotalCorrect() : 0)
-                            + (a.getTotalIncorrect() != null ? a.getTotalIncorrect() : 0)
-                            + (a.getTotalUnanswered() != null ? a.getTotalUnanswered() : 0);
-                    double accuracy = total > 0
-                            ? (double) (a.getTotalCorrect() != null ? a.getTotalCorrect() : 0) / total * 100 : 0;
-                    return ScoreHistoryDto.builder()
-                            .attemptId(a.getId())
-                            .testTitle(a.getTest() != null ? a.getTest().getTitle() : "Unknown")
-                            .attemptType(a.getAttemptType())
-                            .totalCorrect(a.getTotalCorrect())
-                            .totalQuestions(total)
-                            .accuracy(Math.round(accuracy * 10.0) / 10.0)
-                            .date(a.getStartedAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
+    public PageResponseDto<ScoreHistoryDto> getScoreHistory(User user, int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<TestAttempt> attemptPage = attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId(), pageable);
+        return PageResponseDto.of(attemptPage, a -> {
+            int total = (a.getTotalCorrect() != null ? a.getTotalCorrect() : 0)
+                    + (a.getTotalIncorrect() != null ? a.getTotalIncorrect() : 0)
+                    + (a.getTotalUnanswered() != null ? a.getTotalUnanswered() : 0);
+            double accuracy = total > 0
+                    ? (double) (a.getTotalCorrect() != null ? a.getTotalCorrect() : 0) / total * 100 : 0;
+            return ScoreHistoryDto.builder()
+                    .attemptId(a.getId())
+                    .testTitle(a.getTest() != null ? a.getTest().getTitle() : "Unknown")
+                    .attemptType(a.getAttemptType())
+                    .totalCorrect(a.getTotalCorrect())
+                    .totalQuestions(total)
+                    .accuracy(Math.round(accuracy * 10.0) / 10.0)
+                    .date(a.getStartedAt())
+                    .build();
+        });
     }
 
     public List<PartAccuracyDto> getPartAccuracy(User user) {
-        // Get all user answers for this user
-        List<TestAttempt> attempts = attemptRepository.findByUserIdOrderByStartedAtDesc(user.getId());
-
-        Map<Integer, int[]> partStats = new LinkedHashMap<>();
-        // Initialize all parts 1-7
-        for (int i = 1; i <= 7; i++) {
-            partStats.put(i, new int[]{0, 0}); // [totalAnswered, totalCorrect]
-        }
-
-        for (TestAttempt attempt : attempts) {
-            if (attempt.getCompletedAt() == null) continue;
-            List<UserAnswer> answers = userAnswerRepository.findByAttemptId(attempt.getId());
-            for (UserAnswer ua : answers) {
-                if (ua.getSelectedOption() == null || ua.getSelectedOption().isEmpty()) continue;
-                int partNum = getPartNumberForQuestion(ua);
-                if (partNum < 1 || partNum > 7) continue;
-                int[] stats = partStats.get(partNum);
-                stats[0]++; // totalAnswered
-                if (Boolean.TRUE.equals(ua.getIsCorrect())) {
-                    stats[1]++; // totalCorrect
-                }
-            }
-        }
+        UserDashboardStats stats = userDashboardStatsService.getOrCalculateStats(user);
 
         String[] partNames = {
                 "Photos", "Question-Response", "Conversations",
                 "Short Talks", "Incomplete Sentences", "Text Completion", "Reading Passages"
         };
 
-        return partStats.entrySet().stream().map(entry -> {
-            int partNum = entry.getKey();
-            int[] stats = entry.getValue();
-            double accuracy = stats[0] > 0 ? (double) stats[1] / stats[0] * 100 : 0;
-            return PartAccuracyDto.builder()
-                    .partNumber(partNum)
-                    .partName(partNames[partNum - 1])
-                    .totalAnswered(stats[0])
-                    .totalCorrect(stats[1])
+        int[][] partData = {
+                {stats.getP1Total() != null ? stats.getP1Total() : 0, stats.getP1Correct() != null ? stats.getP1Correct() : 0},
+                {stats.getP2Total() != null ? stats.getP2Total() : 0, stats.getP2Correct() != null ? stats.getP2Correct() : 0},
+                {stats.getP3Total() != null ? stats.getP3Total() : 0, stats.getP3Correct() != null ? stats.getP3Correct() : 0},
+                {stats.getP4Total() != null ? stats.getP4Total() : 0, stats.getP4Correct() != null ? stats.getP4Correct() : 0},
+                {stats.getP5Total() != null ? stats.getP5Total() : 0, stats.getP5Correct() != null ? stats.getP5Correct() : 0},
+                {stats.getP6Total() != null ? stats.getP6Total() : 0, stats.getP6Correct() != null ? stats.getP6Correct() : 0},
+                {stats.getP7Total() != null ? stats.getP7Total() : 0, stats.getP7Correct() != null ? stats.getP7Correct() : 0}
+        };
+
+        List<PartAccuracyDto> list = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            int total = partData[i - 1][0];
+            int correct = partData[i - 1][1];
+            double accuracy = total > 0 ? (double) correct / total * 100 : 0.0;
+            list.add(PartAccuracyDto.builder()
+                    .partNumber(i)
+                    .partName(partNames[i - 1])
+                    .totalAnswered(total)
+                    .totalCorrect(correct)
                     .accuracy(Math.round(accuracy * 10.0) / 10.0)
-                    .build();
-        }).collect(Collectors.toList());
-    }
-
-    private int getPartNumberForQuestion(UserAnswer ua) {
-        if (ua.getQuestion() == null || ua.getQuestion().getQuestionGroup() == null) return 0;
-        return questionGroupRepository.findById(ua.getQuestion().getQuestionGroup().getId())
-                .map(qg -> {
-                    if (qg.getTestPart() == null) return 0;
-                    return testPartRepository.findById(qg.getTestPart().getId())
-                            .map(tp -> tp.getPartNumber() != null ? tp.getPartNumber() : 0)
-                            .orElse(0);
-                }).orElse(0);
-    }
-
-    private int calculateStreak(List<TestAttempt> completed) {
-        if (completed.isEmpty()) return 0;
-
-        // Collect distinct days with activity
-        Set<LocalDate> activeDays = completed.stream()
-                .filter(a -> a.getStartedAt() != null)
-                .map(a -> a.getStartedAt().toLocalDate())
-                .collect(Collectors.toSet());
-
-        LocalDate today = LocalDate.now();
-        int streak = 0;
-        LocalDate day = today;
-
-        while (activeDays.contains(day)) {
-            streak++;
-            day = day.minusDays(1);
+                    .build());
         }
-
-        // If today not practiced, check yesterday to keep streak if it continues
-        if (streak == 0) {
-            day = today.minusDays(1);
-            while (activeDays.contains(day)) {
-                streak++;
-                day = day.minusDays(1);
-            }
-        }
-
-        return streak;
+        return list;
     }
 }

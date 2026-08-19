@@ -20,8 +20,11 @@ public class AnalyticsController {
     private final AnalyticsService analyticsService;
 
     @GetMapping("/history")
-    public ResponseEntity<List<AttemptHistoryDto>> getHistory(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(analyticsService.getHistory(user));
+    public ResponseEntity<PageResponseDto<AttemptHistoryDto>> getHistory(
+            @AuthenticationPrincipal User user,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(analyticsService.getHistory(user, page, size));
     }
 
     @GetMapping("/stats")
@@ -30,8 +33,11 @@ public class AnalyticsController {
     }
 
     @GetMapping("/score-history")
-    public ResponseEntity<List<ScoreHistoryDto>> getScoreHistory(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(analyticsService.getScoreHistory(user));
+    public ResponseEntity<PageResponseDto<ScoreHistoryDto>> getScoreHistory(
+            @AuthenticationPrincipal User user,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(analyticsService.getScoreHistory(user, page, size));
     }
 
     @GetMapping("/part-accuracy")

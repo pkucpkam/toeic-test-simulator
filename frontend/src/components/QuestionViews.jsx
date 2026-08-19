@@ -235,7 +235,9 @@ export function ListeningPicture({ question, selectedOption, onSelectOption, mod
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
-        <div className="iig-question-text">{question.questionNumber}. Question {question.questionNumber}</div>
+        <div className="iig-question-text">
+          {question.questionNumber}. {(isChecked && question.questionText) ? question.questionText : `Question ${question.questionNumber}`}
+        </div>
         <OptionsList question={question} selections={{ [question.id]: selectedOption }} onSelectOption={onSelectOption} hideText={true} mode={mode} checkedQuestions={checkedQuestions} onCheckAnswer={onCheckAnswer} />
       </div>
     </>
@@ -259,7 +261,9 @@ export function ListeningResponse({ question, selectedOption, onSelectOption, mo
       </div>
       <div className="iig-col-right">
         <div className="iig-question-header">Question</div>
-        <div className="iig-question-text">{question.questionNumber}. Question {question.questionNumber}</div>
+        <div className="iig-question-text">
+          {question.questionNumber}. {(isChecked && question.questionText) ? question.questionText : `Question ${question.questionNumber}`}
+        </div>
         <OptionsList question={question} selections={{ [question.id]: selectedOption }} onSelectOption={onSelectOption} hideText={true} mode={mode} checkedQuestions={checkedQuestions} onCheckAnswer={onCheckAnswer} />
       </div>
     </>

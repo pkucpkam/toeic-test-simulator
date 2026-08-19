@@ -31,9 +31,12 @@ export default function DashboardPage() {
           apiClient.get('/analytics/score-history'),
           apiClient.get('/analytics/part-accuracy'),
         ]);
-        setHistory(histRes.data);
+        const histData = Array.isArray(histRes.data) ? histRes.data : (histRes.data?.content || []);
+        const scoreHistData = Array.isArray(scoreHistRes.data) ? scoreHistRes.data : (scoreHistRes.data?.content || []);
+
+        setHistory(histData);
         setStats(statsRes.data);
-        setScoreHistory(scoreHistRes.data.slice(0, 20).reverse()); // chronological, last 20
+        setScoreHistory(scoreHistData.slice(0, 20).reverse());
         setPartAccuracy(partAccRes.data);
       } catch (err) {
         console.error("Error fetching dashboard data", err);
