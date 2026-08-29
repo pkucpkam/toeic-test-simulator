@@ -7,7 +7,8 @@ import {
   ListeningResponse,
   ListeningAudioGroup,
   IncompleteSentence,
-  ReadingPassageGroup
+  ReadingPassageGroup,
+  ExplanationView
 } from '../../../components/QuestionViews';
 import { getUser } from '../../../utils/auth';
 import apiClient from '../../../utils/apiClient';
@@ -471,27 +472,7 @@ export default function TestSimulator({ params, searchParams }) {
                       })}
                     </div>
                     {q.explanation && (
-                      <div style={{
-                        background: '#e8f5e9', border: '1px solid #c8e6c9', padding: '1rem',
-                        borderRadius: '8px', color: '#2e7d32', fontSize: '0.9rem', marginTop: '0.75rem',
-                        overflowWrap: 'break-word', wordBreak: 'normal'
-                      }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '0.95rem' }}>💡 Explanation:</div>
-                        {q.explanation.split('\n').map((line, i) => {
-                          const match = line.trim().match(/^([A-D])\s+(.*)/);
-                          if (match) {
-                            return (
-                              <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem', overflowWrap: 'break-word', wordBreak: 'normal' }}>
-                                <span style={{ fontWeight: 'bold', background: '#c8e6c9', color: '#1b5e20', padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0 }}>
-                                  {match[1]}
-                                </span>
-                                <span style={{ flex: 1, minWidth: 0, overflowWrap: 'break-word', wordBreak: 'normal' }}>{match[2]}</span>
-                              </div>
-                            );
-                          }
-                          return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', overflowWrap: 'break-word', wordBreak: 'normal' }}>{line}</div>;
-                        })}
-                      </div>
+                      <ExplanationView explanation={q.explanation} />
                     )}
                   </div>
                 ))}
