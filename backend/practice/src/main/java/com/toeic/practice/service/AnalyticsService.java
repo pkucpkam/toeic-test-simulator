@@ -28,13 +28,17 @@ public class AnalyticsService {
             String title = attempt.getTest() != null ? attempt.getTest().getTitle()
                     : (attempt.getTestPart() != null && attempt.getTestPart().getTest() != null
                             ? attempt.getTestPart().getTest().getTitle() : "Unknown");
+            Integer partNumber = attempt.getTestPart() != null ? attempt.getTestPart().getPartNumber() : null;
             return AttemptHistoryDto.builder()
                     .id(attempt.getId())
                     .testId(testId)
                     .testTitle(title)
                     .attemptType(attempt.getAttemptType())
+                    .partNumber(partNumber)
                     .totalScore(attempt.getTotalScore())
                     .totalCorrect(attempt.getTotalCorrect())
+                    .totalIncorrect(attempt.getTotalIncorrect())
+                    .totalUnanswered(attempt.getTotalUnanswered())
                     .durationSeconds(attempt.getDurationSeconds())
                     .startedAt(attempt.getStartedAt())
                     .completedAt(attempt.getCompletedAt())

@@ -91,6 +91,7 @@ export default function DashboardPage() {
         <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           <span style={{ fontWeight: 600, color: 'var(--primary)' }}>Hi, {user.name}</span>
           <Link href="/tests" style={{ color: 'var(--text-muted)', fontWeight: 500, textDecoration: 'none' }}>Practice</Link>
+          <Link href="/history" style={{ color: 'var(--text-muted)', fontWeight: 500, textDecoration: 'none' }}>History</Link>
           <Link href="/review" style={{ color: 'var(--text-muted)', fontWeight: 500, textDecoration: 'none' }}>Review</Link>
           <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1rem', fontWeight: 500 }}>Logout</button>
         </nav>
@@ -242,7 +243,15 @@ export default function DashboardPage() {
 
         {/* Recent History Table */}
         <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', backdropFilter: 'blur(16px)' }}>
-          <h3 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1.25rem', fontSize: '1.1rem' }}>Recent Attempts</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', margin: 0 }}>Recent Attempts</h3>
+            <Link href="/history" style={{
+              fontSize: '0.8rem', color: '#60a5fa', fontWeight: 600, textDecoration: 'none',
+              padding: '0.3rem 0.75rem', borderRadius: '8px',
+              border: '1px solid rgba(96,165,250,0.3)', background: 'rgba(96,165,250,0.08)',
+              transition: 'background 0.15s',
+            }}>Xem toàn bộ lịch sử →</Link>
+          </div>
 
           {history.length > 0 ? (
             <div style={{ overflowX: 'auto' }}>
