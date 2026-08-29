@@ -30,6 +30,8 @@ export default function TestSimulator({ params, searchParams }) {
   const isPart = !isFull && !isMini;
 
   const [attemptId, setAttemptId] = useState(null);
+  // Lazy start: store attempt metadata until the user actually submits
+  const attemptMetaRef = useRef({ testId: null, attemptType: 'FULL', testPartId: null });
   const [allQuestions, setAllQuestions] = useState([]);
   const [fullAudioUrl, setFullAudioUrl] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -73,7 +75,7 @@ export default function TestSimulator({ params, searchParams }) {
           return;
         }
 
-        // Determine attempt type and part
+        // Lazy start: determine attempt type/part and store metadata for later (used at submit time)
         let attemptType = 'FULL';
         let attemptPartId = null;
         if (isMini) {
@@ -83,14 +85,12 @@ export default function TestSimulator({ params, searchParams }) {
           attemptType = 'PART';
           attemptPartId = parseInt(mode); // mode = partId
         }
-
-        const attemptPayload = {
+        attemptMetaRef.current = {
           testId: parseInt(testId),
           attemptType,
           testPartId: attemptPartId,
         };
-        const attemptRes = await apiClient.post('/attempts/start', attemptPayload);
-        setAttemptId(attemptRes.data.id);
+
 
         // Fetch test info
         const testRes = await apiClient.get(`/tests/${testId}`);
@@ -182,7 +182,6 @@ export default function TestSimulator({ params, searchParams }) {
   }, [testId, mode]);
 
   const handleSubmit = async () => {
-    if (!attemptId) return;
     if (isSubmitting) return;  // prevent duplicate submission
     setIsSubmitting(true);
     try {
@@ -205,13 +204,18 @@ export default function TestSimulator({ params, searchParams }) {
         }
       });
 
-      await apiClient.post(`/attempts/${attemptId}/submit`, {
+      // submit-direct: create the attempt record + save answers in one request
+      const meta = attemptMetaRef.current;
+      const resultRes = await apiClient.post('/attempts/submit-direct', {
+        testId: meta.testId,
+        attemptType: meta.attemptType,
+        testPartId: meta.testPartId,
         durationSeconds,
-        answers: answersPayload
+        answers: answersPayload,
       });
 
-      // Fetch full result
-      const resultRes = await apiClient.get(`/attempts/${attemptId}/result`);
+      // Response contains the full result (attemptId included)
+      setAttemptId(resultRes.data.attemptId);
       setScoreData(resultRes.data);
       setIsSubmitted(true);
     } catch (err) {

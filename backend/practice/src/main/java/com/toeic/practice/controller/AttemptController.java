@@ -36,6 +36,20 @@ public class AttemptController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Lazy submit-direct: creates the attempt and saves results in one request.
+     * Frontend does NOT need to call /start first.
+     * Returns the attemptId and full result so the frontend can display the score immediately.
+     */
+    @PostMapping("/submit-direct")
+    public ResponseEntity<AttemptResultDto> submitAttemptDirect(
+            @RequestBody SubmitAttemptRequest request,
+            @AuthenticationPrincipal User user) {
+        Long attemptId = attemptService.submitAttemptDirect(request, user);
+        AttemptResultDto result = attemptService.getAttemptResult(attemptId, user);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/{attemptId}/result")
     public ResponseEntity<AttemptResultDto> getAttemptResult(
             @PathVariable Long attemptId,
