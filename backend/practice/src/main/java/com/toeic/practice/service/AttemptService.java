@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ public class AttemptService {
     private final TestPartRepository testPartRepository;
     private final QuestionGroupRepository questionGroupRepository;
     private final UserDashboardStatsService userDashboardStatsService;
+    private final UserTestStatsService userTestStatsService;
 
     @Transactional
     public Long startAttempt(StartAttemptRequest request, User user) {
@@ -63,6 +65,7 @@ public class AttemptService {
         int totalUnanswered = 0;
         int listeningCorrect = 0;
         int readingCorrect = 0;
+        List<UserAnswer> savedAnswers = new ArrayList<>();
 
         List<UserAnswerSubmitDto> answers = request.getAnswers();
 
@@ -104,6 +107,7 @@ public class AttemptService {
                     .isCorrect(isCorrect)
                     .build();
             userAnswerRepository.save(userAnswer);
+            savedAnswers.add(userAnswer);
         }
 
         attempt.setCompletedAt(LocalDateTime.now());
@@ -117,8 +121,9 @@ public class AttemptService {
 
         attemptRepository.save(attempt);
 
-        // Update pre-calculated user dashboard stats
+        // Update pre-calculated stats (overall + per-test/part cache)
         userDashboardStatsService.recalculateStats(user);
+        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
     }
 
     /**
@@ -160,6 +165,7 @@ public class AttemptService {
         int totalUnanswered = 0;
         int listeningCorrect = 0;
         int readingCorrect = 0;
+        List<UserAnswer> savedAnswers = new ArrayList<>();
 
         List<UserAnswerSubmitDto> answers = request.getAnswers();
         if (answers != null) {
@@ -198,6 +204,7 @@ public class AttemptService {
                         .isCorrect(isCorrect)
                         .build();
                 userAnswerRepository.save(userAnswer);
+                savedAnswers.add(userAnswer);
             }
         }
 
@@ -212,8 +219,9 @@ public class AttemptService {
 
         attemptRepository.save(attempt);
 
-        // Update pre-calculated user dashboard stats
+        // Update pre-calculated stats (overall + per-test/part cache)
         userDashboardStatsService.recalculateStats(user);
+        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
 
         return attempt.getId();
     }
