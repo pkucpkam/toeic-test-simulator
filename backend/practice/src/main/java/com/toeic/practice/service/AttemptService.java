@@ -11,8 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,7 +25,6 @@ public class AttemptService {
     private final QuestionRepository questionRepository;
     private final TestRepository testRepository;
     private final TestPartRepository testPartRepository;
-    private final QuestionGroupRepository questionGroupRepository;
     private final UserDashboardStatsService userDashboardStatsService;
     private final UserTestStatsService userTestStatsService;
 
@@ -60,70 +59,23 @@ public class AttemptService {
             throw new IllegalArgumentException("Not authorized for this attempt");
         }
 
-        int totalCorrect = 0;
-        int totalIncorrect = 0;
-        int totalUnanswered = 0;
-        int listeningCorrect = 0;
-        int readingCorrect = 0;
-        List<UserAnswer> savedAnswers = new ArrayList<>();
-
-        List<UserAnswerSubmitDto> answers = request.getAnswers();
-
-        for (UserAnswerSubmitDto answerDto : answers) {
-            Question question = questionRepository.findById(answerDto.getQuestionId())
-                    .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-
-            boolean isCorrect = false;
-            if (answerDto.getSelectedOption() == null || answerDto.getSelectedOption().isEmpty()) {
-                totalUnanswered++;
-            } else {
-                isCorrect = answerDto.getSelectedOption().equals(question.getCorrectAnswer());
-                if (isCorrect) {
-                    totalCorrect++;
-                    // Determine if this question belongs to Listening (Part 1-4) or Reading (Part 5-7)
-                    int partNumber = getPartNumberForQuestion(question);
-                    if (partNumber >= 1 && partNumber <= 4) {
-                        listeningCorrect++;
-                    } else {
-                        readingCorrect++;
-                    }
-                } else {
-                    totalIncorrect++;
-
-                    // Save to user_incorrect_questions
-                    UserIncorrectQuestion incorrectQuestion = UserIncorrectQuestion.builder()
-                            .user(user)
-                            .question(question)
-                            .attempt(attempt)
-                            .build();
-                    incorrectQuestionRepository.save(incorrectQuestion);
-                }
-            }
-
-            UserAnswer userAnswer = UserAnswer.builder()
-                    .attempt(attempt)
-                    .question(question)
-                    .selectedOption(answerDto.getSelectedOption())
-                    .isCorrect(isCorrect)
-                    .build();
-            userAnswerRepository.save(userAnswer);
-            savedAnswers.add(userAnswer);
-        }
+        List<UserAnswerSubmitDto> answerDtos = request.getAnswers();
+        ProcessedAnswers processed = processAnswers(answerDtos, attempt, user);
 
         attempt.setCompletedAt(LocalDateTime.now());
         attempt.setDurationSeconds(request.getDurationSeconds());
-        attempt.setTotalCorrect(totalCorrect);
-        attempt.setTotalIncorrect(totalIncorrect);
-        attempt.setTotalUnanswered(totalUnanswered);
-        attempt.setListeningScore(listeningCorrect);
-        attempt.setReadingScore(readingCorrect);
-        attempt.setTotalScore(totalCorrect);
+        attempt.setTotalCorrect(processed.totalCorrect);
+        attempt.setTotalIncorrect(processed.totalIncorrect);
+        attempt.setTotalUnanswered(processed.totalUnanswered);
+        attempt.setListeningScore(processed.listeningCorrect);
+        attempt.setReadingScore(processed.readingCorrect);
+        attempt.setTotalScore(processed.totalCorrect);
 
         attemptRepository.save(attempt);
 
-        // Update pre-calculated stats (overall + per-test/part cache)
-        userDashboardStatsService.recalculateStats(user);
-        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
+        // Incremental stats update (replaces the slow recalculateStats call)
+        userDashboardStatsService.updateStatsForAttempt(user, attempt, processed.savedAnswers, processed.questionPartMap);
+        userTestStatsService.updateStatsForAttempt(user, attempt, processed.savedAnswers);
     }
 
     /**
@@ -159,75 +111,30 @@ public class AttemptService {
 
         attempt = attemptRepository.save(attempt);
 
-        // Process answers inline (same logic as submitAttempt, no self-invocation)
-        int totalCorrect = 0;
-        int totalIncorrect = 0;
-        int totalUnanswered = 0;
-        int listeningCorrect = 0;
-        int readingCorrect = 0;
-        List<UserAnswer> savedAnswers = new ArrayList<>();
-
-        List<UserAnswerSubmitDto> answers = request.getAnswers();
-        if (answers != null) {
-            for (UserAnswerSubmitDto answerDto : answers) {
-                Question question = questionRepository.findById(answerDto.getQuestionId())
-                        .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-
-                boolean isCorrect = false;
-                if (answerDto.getSelectedOption() == null || answerDto.getSelectedOption().isEmpty()) {
-                    totalUnanswered++;
-                } else {
-                    isCorrect = answerDto.getSelectedOption().equals(question.getCorrectAnswer());
-                    if (isCorrect) {
-                        totalCorrect++;
-                        int partNumber = getPartNumberForQuestion(question);
-                        if (partNumber >= 1 && partNumber <= 4) {
-                            listeningCorrect++;
-                        } else {
-                            readingCorrect++;
-                        }
-                    } else {
-                        totalIncorrect++;
-                        UserIncorrectQuestion incorrectQuestion = UserIncorrectQuestion.builder()
-                                .user(user)
-                                .question(question)
-                                .attempt(attempt)
-                                .build();
-                        incorrectQuestionRepository.save(incorrectQuestion);
-                    }
-                }
-
-                UserAnswer userAnswer = UserAnswer.builder()
-                        .attempt(attempt)
-                        .question(question)
-                        .selectedOption(answerDto.getSelectedOption())
-                        .isCorrect(isCorrect)
-                        .build();
-                userAnswerRepository.save(userAnswer);
-                savedAnswers.add(userAnswer);
-            }
-        }
+        List<UserAnswerSubmitDto> answerDtos = request.getAnswers() != null ? request.getAnswers() : Collections.emptyList();
+        ProcessedAnswers processed = processAnswers(answerDtos, attempt, user);
 
         attempt.setCompletedAt(LocalDateTime.now());
         attempt.setDurationSeconds(request.getDurationSeconds());
-        attempt.setTotalCorrect(totalCorrect);
-        attempt.setTotalIncorrect(totalIncorrect);
-        attempt.setTotalUnanswered(totalUnanswered);
-        attempt.setListeningScore(listeningCorrect);
-        attempt.setReadingScore(readingCorrect);
-        attempt.setTotalScore(totalCorrect);
+        attempt.setTotalCorrect(processed.totalCorrect);
+        attempt.setTotalIncorrect(processed.totalIncorrect);
+        attempt.setTotalUnanswered(processed.totalUnanswered);
+        attempt.setListeningScore(processed.listeningCorrect);
+        attempt.setReadingScore(processed.readingCorrect);
+        attempt.setTotalScore(processed.totalCorrect);
 
         attemptRepository.save(attempt);
 
-        // Update pre-calculated stats (overall + per-test/part cache)
-        userDashboardStatsService.recalculateStats(user);
-        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
+        // Incremental stats update (replaces the slow recalculateStats call)
+        userDashboardStatsService.updateStatsForAttempt(user, attempt, processed.savedAnswers, processed.questionPartMap);
+        userTestStatsService.updateStatsForAttempt(user, attempt, processed.savedAnswers);
 
         return attempt.getId();
     }
 
     /**
      * Returns detailed result for an attempt including per-question breakdown.
+     * Uses JOIN FETCH to avoid N+1 queries when reading partNumber for each question.
      */
     public AttemptResultDto getAttemptResult(Long attemptId, User user) {
         TestAttempt attempt = attemptRepository.findById(attemptId)
@@ -237,24 +144,30 @@ public class AttemptService {
             throw new IllegalArgumentException("Not authorized for this attempt");
         }
 
-        List<UserAnswer> userAnswers = userAnswerRepository.findByAttemptId(attemptId);
+        // Single JOIN FETCH query - no N+1 for questionGroup / testPart
+        List<UserAnswer> userAnswers = userAnswerRepository.findByAttemptIdWithDetails(attemptId);
 
         List<AttemptResultDto.QuestionResultDto> questionResults = userAnswers.stream()
                 .map(ua -> {
                     Question q = ua.getQuestion();
-                    int partNum = getPartNumberForQuestion(q);
+                    // partNumber is already loaded via JOIN FETCH - no extra SQL
+                    int partNum = 0;
+                    if (q != null && q.getQuestionGroup() != null && q.getQuestionGroup().getTestPart() != null) {
+                        Integer pn = q.getQuestionGroup().getTestPart().getPartNumber();
+                        partNum = pn != null ? pn : 0;
+                    }
                     return AttemptResultDto.QuestionResultDto.builder()
-                            .questionId(q.getId())
-                            .questionNumber(q.getQuestionNumber())
-                            .questionText(q.getQuestionText())
-                            .optionA(q.getOptionA())
-                            .optionB(q.getOptionB())
-                            .optionC(q.getOptionC())
-                            .optionD(q.getOptionD())
-                            .correctAnswer(q.getCorrectAnswer())
+                            .questionId(q != null ? q.getId() : null)
+                            .questionNumber(q != null ? q.getQuestionNumber() : null)
+                            .questionText(q != null ? q.getQuestionText() : null)
+                            .optionA(q != null ? q.getOptionA() : null)
+                            .optionB(q != null ? q.getOptionB() : null)
+                            .optionC(q != null ? q.getOptionC() : null)
+                            .optionD(q != null ? q.getOptionD() : null)
+                            .correctAnswer(q != null ? q.getCorrectAnswer() : null)
                             .selectedOption(ua.getSelectedOption())
                             .isCorrect(ua.getIsCorrect())
-                            .explanation(q.getExplanation())
+                            .explanation(q != null ? q.getExplanation() : null)
                             .partNumber(partNum)
                             .partTitle("Part " + partNum)
                             .build();
@@ -287,15 +200,115 @@ public class AttemptService {
                 .build();
     }
 
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
     /**
-     * Determines the part number (1-7) for a given question via its QuestionGroup -> TestPart.
+     * Shared answer-processing logic for both submitAttempt and submitAttemptDirect.
+     * <p>
+     * Optimisations applied here (vs the old per-question loop):
+     * <ol>
+     *   <li>Batch-fetch all Question entities in a single findAllById call.</li>
+     *   <li>Batch-fetch all questionId→partNumber mappings in one native SQL query.</li>
+     *   <li>Collect UserAnswer and UserIncorrectQuestion lists, then persist with saveAll()
+     *       so Hibernate can use JDBC batch inserts.</li>
+     * </ol>
      */
-    private int getPartNumberForQuestion(Question question) {
-        if (question.getQuestionGroup() == null) return 0;
-        QuestionGroup qg = questionGroupRepository.findById(question.getQuestionGroup().getId()).orElse(null);
-        if (qg == null || qg.getTestPart() == null) return 0;
-        TestPart part = testPartRepository.findById(qg.getTestPart().getId()).orElse(null);
-        if (part == null) return 0;
-        return part.getPartNumber() != null ? part.getPartNumber() : 0;
+    private ProcessedAnswers processAnswers(List<UserAnswerSubmitDto> answerDtos,
+                                            TestAttempt attempt,
+                                            User user) {
+        if (answerDtos == null || answerDtos.isEmpty()) {
+            return new ProcessedAnswers(0, 0, 0, 0, 0,
+                    Collections.emptyList(), Collections.emptyMap());
+        }
+
+        // 1. Batch-fetch all questions in one query
+        List<Long> questionIds = answerDtos.stream()
+                .map(UserAnswerSubmitDto::getQuestionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, Question> questionMap = questionRepository.findAllById(questionIds).stream()
+                .collect(Collectors.toMap(Question::getId, Function.identity()));
+
+        // 2. Batch-fetch partNumber mapping (questionId -> partNumber) in one SQL
+        Map<Long, Integer> questionPartMap = questionRepository.buildQuestionPartMap(questionIds);
+
+        int totalCorrect = 0;
+        int totalIncorrect = 0;
+        int totalUnanswered = 0;
+        int listeningCorrect = 0;
+        int readingCorrect = 0;
+
+        List<UserAnswer> userAnswers = new ArrayList<>();
+        List<UserIncorrectQuestion> incorrectQuestions = new ArrayList<>();
+
+        for (UserAnswerSubmitDto dto : answerDtos) {
+            Question question = questionMap.get(dto.getQuestionId());
+            if (question == null) continue; // skip unknown question ids gracefully
+
+            boolean isCorrect = false;
+
+            if (dto.getSelectedOption() == null || dto.getSelectedOption().isEmpty()) {
+                totalUnanswered++;
+            } else {
+                isCorrect = dto.getSelectedOption().equals(question.getCorrectAnswer());
+                if (isCorrect) {
+                    totalCorrect++;
+                    int partNumber = questionPartMap.getOrDefault(question.getId(), 0);
+                    if (partNumber >= 1 && partNumber <= 4) {
+                        listeningCorrect++;
+                    } else {
+                        readingCorrect++;
+                    }
+                } else {
+                    totalIncorrect++;
+                    incorrectQuestions.add(UserIncorrectQuestion.builder()
+                            .user(user)
+                            .question(question)
+                            .attempt(attempt)
+                            .build());
+                }
+            }
+
+            userAnswers.add(UserAnswer.builder()
+                    .attempt(attempt)
+                    .question(question)
+                    .selectedOption(dto.getSelectedOption())
+                    .isCorrect(isCorrect)
+                    .build());
+        }
+
+        // 3. Batch insert - saveAll allows Hibernate to use JDBC batch statements
+        List<UserAnswer> savedAnswers = userAnswerRepository.saveAll(userAnswers);
+        incorrectQuestionRepository.saveAll(incorrectQuestions);
+
+        return new ProcessedAnswers(totalCorrect, totalIncorrect, totalUnanswered,
+                listeningCorrect, readingCorrect, savedAnswers, questionPartMap);
+    }
+
+    /** Simple value object returned by processAnswers(). */
+    private static class ProcessedAnswers {
+        final int totalCorrect;
+        final int totalIncorrect;
+        final int totalUnanswered;
+        final int listeningCorrect;
+        final int readingCorrect;
+        final List<UserAnswer> savedAnswers;
+        final Map<Long, Integer> questionPartMap;
+
+        ProcessedAnswers(int totalCorrect, int totalIncorrect, int totalUnanswered,
+                         int listeningCorrect, int readingCorrect,
+                         List<UserAnswer> savedAnswers, Map<Long, Integer> questionPartMap) {
+            this.totalCorrect = totalCorrect;
+            this.totalIncorrect = totalIncorrect;
+            this.totalUnanswered = totalUnanswered;
+            this.listeningCorrect = listeningCorrect;
+            this.readingCorrect = readingCorrect;
+            this.savedAnswers = savedAnswers;
+            this.questionPartMap = questionPartMap;
+        }
     }
 }
