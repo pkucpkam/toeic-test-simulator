@@ -7,7 +7,8 @@ import {
   ListeningResponse,
   ListeningAudioGroup,
   IncompleteSentence,
-  ReadingPassageGroup
+  ReadingPassageGroup,
+  ExplanationView
 } from '../../../components/QuestionViews';
 import { getUser } from '../../../utils/auth';
 import apiClient from '../../../utils/apiClient';
@@ -29,6 +30,8 @@ export default function TestSimulator({ params, searchParams }) {
   const isPart = !isFull && !isMini;
 
   const [attemptId, setAttemptId] = useState(null);
+  // Lazy start: store attempt metadata until the user actually submits
+  const attemptMetaRef = useRef({ testId: null, attemptType: 'FULL', testPartId: null });
   const [allQuestions, setAllQuestions] = useState([]);
   const [fullAudioUrl, setFullAudioUrl] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -72,7 +75,7 @@ export default function TestSimulator({ params, searchParams }) {
           return;
         }
 
-        // Determine attempt type and part
+        // Lazy start: determine attempt type/part and store metadata for later (used at submit time)
         let attemptType = 'FULL';
         let attemptPartId = null;
         if (isMini) {
@@ -82,14 +85,12 @@ export default function TestSimulator({ params, searchParams }) {
           attemptType = 'PART';
           attemptPartId = parseInt(mode); // mode = partId
         }
-
-        const attemptPayload = {
+        attemptMetaRef.current = {
           testId: parseInt(testId),
           attemptType,
           testPartId: attemptPartId,
         };
-        const attemptRes = await apiClient.post('/attempts/start', attemptPayload);
-        setAttemptId(attemptRes.data.id);
+
 
         // Fetch test info
         const testRes = await apiClient.get(`/tests/${testId}`);
@@ -181,7 +182,6 @@ export default function TestSimulator({ params, searchParams }) {
   }, [testId, mode]);
 
   const handleSubmit = async () => {
-    if (!attemptId) return;
     if (isSubmitting) return;  // prevent duplicate submission
     setIsSubmitting(true);
     try {
@@ -204,13 +204,18 @@ export default function TestSimulator({ params, searchParams }) {
         }
       });
 
-      await apiClient.post(`/attempts/${attemptId}/submit`, {
+      // submit-direct: create the attempt record + save answers in one request
+      const meta = attemptMetaRef.current;
+      const resultRes = await apiClient.post('/attempts/submit-direct', {
+        testId: meta.testId,
+        attemptType: meta.attemptType,
+        testPartId: meta.testPartId,
         durationSeconds,
-        answers: answersPayload
+        answers: answersPayload,
       });
 
-      // Fetch full result
-      const resultRes = await apiClient.get(`/attempts/${attemptId}/result`);
+      // Response contains the full result (attemptId included)
+      setAttemptId(resultRes.data.attemptId);
       setScoreData(resultRes.data);
       setIsSubmitted(true);
     } catch (err) {
@@ -471,27 +476,7 @@ export default function TestSimulator({ params, searchParams }) {
                       })}
                     </div>
                     {q.explanation && (
-                      <div style={{
-                        background: '#e8f5e9', border: '1px solid #c8e6c9', padding: '1rem',
-                        borderRadius: '8px', color: '#2e7d32', fontSize: '0.9rem', marginTop: '0.75rem',
-                        overflowWrap: 'break-word', wordBreak: 'normal'
-                      }}>
-                        <div style={{ fontWeight: 700, marginBottom: '0.75rem', fontSize: '0.95rem' }}>💡 Explanation:</div>
-                        {q.explanation.split('\n').map((line, i) => {
-                          const match = line.trim().match(/^([A-D])\s+(.*)/);
-                          if (match) {
-                            return (
-                              <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem', overflowWrap: 'break-word', wordBreak: 'normal' }}>
-                                <span style={{ fontWeight: 'bold', background: '#c8e6c9', color: '#1b5e20', padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0 }}>
-                                  {match[1]}
-                                </span>
-                                <span style={{ flex: 1, minWidth: 0, overflowWrap: 'break-word', wordBreak: 'normal' }}>{match[2]}</span>
-                              </div>
-                            );
-                          }
-                          return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', overflowWrap: 'break-word', wordBreak: 'normal' }}>{line}</div>;
-                        })}
-                      </div>
+                      <ExplanationView explanation={q.explanation} />
                     )}
                   </div>
                 ))}

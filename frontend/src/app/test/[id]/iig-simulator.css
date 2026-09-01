@@ -11,6 +11,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding-bottom: 60px;
 }
 
 /* Header */
@@ -246,8 +247,26 @@
   font-size: 0.9rem;
 }
 
+.rich-text-explanation p {
+  margin-bottom: 0.6rem;
+  line-height: 1.6;
+}
+
+.rich-text-explanation p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-explanation strong {
+  color: #065f46;
+  font-weight: 700;
+}
+
 /* Footer */
 .iig-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background-color: #f1f3f4;
   height: 60px;
   display: flex;
@@ -255,6 +274,7 @@
   justify-content: space-between;
   padding: 0 1rem;
   border-top: 1px solid #e0e0e0;
+  z-index: 100;
 }
 
 .iig-footer-left {

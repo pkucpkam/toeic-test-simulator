@@ -73,6 +73,66 @@ function PassageRenderer({ content, style }) {
 }
 
 
+// Smart renderer for Question Explanations (supports HTML & plain text)
+export function ExplanationView({ explanation, style }) {
+  if (!explanation) return null;
+
+  const trimmed = explanation.trim();
+  const isHtml = /<[a-z][\s\S]*>/i.test(trimmed);
+
+  return (
+    <div
+      className="iig-explanation-container"
+      style={{
+        marginTop: '1rem',
+        padding: '0.875rem 1rem',
+        background: 'rgba(16, 185, 129, 0.08)',
+        border: '1px solid rgba(16, 185, 129, 0.25)',
+        borderRadius: '8px',
+        fontSize: '0.875rem',
+        color: 'inherit',
+        overflowWrap: 'break-word',
+        wordBreak: 'normal',
+        ...style
+      }}
+    >
+      <div style={{ fontWeight: 700, color: '#10b981', marginBottom: '0.75rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        💡 Explanation:
+      </div>
+
+      {isHtml ? (
+        <div 
+          className="rich-text-explanation"
+          style={{ lineHeight: '1.65' }}
+          dangerouslySetInnerHTML={{ __html: applyInlineMarkdown(trimmed) }}
+        />
+      ) : (
+        <div className="text-explanation">
+          {trimmed.split('\n').map((line, i) => {
+            const match = line.trim().match(/^([A-D])\s+(.*)/);
+            if (match) {
+              return (
+                <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem', alignItems: 'baseline' }}>
+                  <span style={{
+                    fontWeight: 'bold', background: 'rgba(16,185,129,0.2)', color: '#065f46',
+                    padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0
+                  }}>
+                    {match[1]}
+                  </span>
+                  <span>{match[2]}</span>
+                </div>
+              );
+            }
+            if (!line.trim()) return null;
+            return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.6' }}>{line}</div>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const OptionsList = ({ question, selections, onSelectOption, hideText = false, mode, checkedQuestions, onCheckAnswer, showCheckButton = true }) => {
   const optionsToRender = question.options || ["(A)", "(B)", "(C)", "(D)"];
   const isChecked = checkedQuestions && checkedQuestions[question.id];
@@ -124,33 +184,7 @@ const OptionsList = ({ question, selections, onSelectOption, hideText = false, m
       )}
 
       {isChecked && question.explanation && (
-        <div style={{
-          marginTop: '1rem', padding: '0.875rem 1rem',
-          background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
-          borderRadius: '8px', fontSize: '0.875rem', color: '#1a2e3b'
-        }}>
-          <div style={{ fontWeight: 700, color: '#10b981', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
-            💡 Explanation:
-          </div>
-          {question.explanation.split('\n').map((line, i) => {
-            const match = line.trim().match(/^([A-D])\s+(.*)/);
-            if (match) {
-              return (
-                <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem' }}>
-                  <span style={{
-                    fontWeight: 'bold', background: 'rgba(16,185,129,0.2)', color: '#065f46',
-                    padding: '0 6px', borderRadius: '4px', height: 'fit-content', flexShrink: 0
-                  }}>
-                    {match[1]}
-                  </span>
-                  <span>{match[2]}</span>
-                </div>
-              );
-            }
-            if (!line.trim()) return null;
-            return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.6' }}>{line}</div>;
-          })}
-        </div>
+        <ExplanationView explanation={question.explanation} />
       )}
     </div>
   );
@@ -210,6 +244,14 @@ function GroupTranscriptView({ passageText, transcript }) {
   );
 }
 
+function getMediaUrl(path) {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${baseUrl}/media/${cleanPath}`;
+}
+
 export function ListeningPicture({ question, selectedOption, onSelectOption, mode, checkedQuestions, onCheckAnswer }) {
   const isChecked = checkedQuestions && checkedQuestions[question.id];
   const group = question.groupData;
@@ -221,14 +263,14 @@ export function ListeningPicture({ question, selectedOption, onSelectOption, mod
         <div style={{ textAlign: 'center' }}>
           {group?.imageUrl ? (
              /* eslint-disable-next-line @next/next/no-img-element */
-             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${group.imageUrl}`} alt="Question visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
+             <img src={getMediaUrl(group.imageUrl)} alt="Question visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
           ) : (
              <div style={{ fontStyle: 'italic', color: '#777' }}>Image not provided</div>
           )}
         </div>
         {mode !== 'full' && group?.audioUrl && (
            <div style={{ marginTop: '1.5rem' }}>
-              <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
+              <audio src={getMediaUrl(group.audioUrl)} controls style={{ width: '100%' }} />
            </div>
         )}
         {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}
@@ -254,7 +296,7 @@ export function ListeningResponse({ question, selectedOption, onSelectOption, mo
         <div className="iig-instruction">{question.instruction}</div>
         {mode !== 'full' && group?.audioUrl && (
            <div style={{ marginTop: '1rem' }}>
-              <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
+              <audio src={getMediaUrl(group.audioUrl)} controls style={{ width: '100%' }} />
            </div>
         )}
         {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}
@@ -285,12 +327,12 @@ export function ListeningAudioGroup({ questions, group, selections, onSelectOpti
         {group?.imageUrl && (
           <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
              {/* eslint-disable-next-line @next/next/no-img-element */}
-             <img src={`${process.env.NEXT_PUBLIC_API_URL}/media/${group.imageUrl}`} alt="Group visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
+             <img src={getMediaUrl(group.imageUrl)} alt="Group visual" style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', border: '1px solid #e0e0e0', padding: '4px' }} />
           </div>
         )}
         {mode !== 'full' && group?.audioUrl && (
            <div style={{ marginTop: '1rem' }}>
-              <audio src={group.audioUrl.startsWith('http') ? group.audioUrl : `${process.env.NEXT_PUBLIC_API_URL}/media/${group.audioUrl}`} controls style={{ width: '100%' }} />
+              <audio src={getMediaUrl(group.audioUrl)} controls style={{ width: '100%' }} />
            </div>
         )}
         {isChecked && <GroupTranscriptView passageText={group?.passageText} transcript={group?.transcript} />}

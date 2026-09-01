@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +27,7 @@ public class AttemptService {
     private final TestPartRepository testPartRepository;
     private final QuestionGroupRepository questionGroupRepository;
     private final UserDashboardStatsService userDashboardStatsService;
+    private final UserTestStatsService userTestStatsService;
 
     @Transactional
     public Long startAttempt(StartAttemptRequest request, User user) {
@@ -63,6 +65,7 @@ public class AttemptService {
         int totalUnanswered = 0;
         int listeningCorrect = 0;
         int readingCorrect = 0;
+        List<UserAnswer> savedAnswers = new ArrayList<>();
 
         List<UserAnswerSubmitDto> answers = request.getAnswers();
 
@@ -104,6 +107,7 @@ public class AttemptService {
                     .isCorrect(isCorrect)
                     .build();
             userAnswerRepository.save(userAnswer);
+            savedAnswers.add(userAnswer);
         }
 
         attempt.setCompletedAt(LocalDateTime.now());
@@ -117,8 +121,109 @@ public class AttemptService {
 
         attemptRepository.save(attempt);
 
-        // Update pre-calculated user dashboard stats
+        // Update pre-calculated stats (overall + per-test/part cache)
         userDashboardStatsService.recalculateStats(user);
+        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
+    }
+
+    /**
+     * Lazy / direct submit: creates the TestAttempt and saves all answers in one transaction.
+     * Used when the frontend does NOT call /attempts/start first (lazy start flow).
+     *
+     * @return the saved attempt id
+     */
+    @Transactional
+    public Long submitAttemptDirect(SubmitAttemptRequest request, User user) {
+        if (request.getTestId() == null) {
+            throw new IllegalArgumentException("testId is required for submit-direct");
+        }
+
+        Test test = testRepository.findById(request.getTestId())
+                .orElseThrow(() -> new IllegalArgumentException("Test not found"));
+
+        TestPart testPart = null;
+        if ("PART".equals(request.getAttemptType()) && request.getTestPartId() != null) {
+            testPart = testPartRepository.findById(request.getTestPartId())
+                    .orElseThrow(() -> new IllegalArgumentException("TestPart not found"));
+        }
+
+        // Create the attempt record now (at submit time)
+        TestAttempt attempt = TestAttempt.builder()
+                .user(user)
+                .attemptType(request.getAttemptType() != null ? request.getAttemptType() : "FULL")
+                .test(test)
+                .testPart(testPart)
+                .startedAt(java.time.LocalDateTime.now()
+                        .minusSeconds(request.getDurationSeconds() != null ? request.getDurationSeconds() : 0))
+                .build();
+
+        attempt = attemptRepository.save(attempt);
+
+        // Process answers inline (same logic as submitAttempt, no self-invocation)
+        int totalCorrect = 0;
+        int totalIncorrect = 0;
+        int totalUnanswered = 0;
+        int listeningCorrect = 0;
+        int readingCorrect = 0;
+        List<UserAnswer> savedAnswers = new ArrayList<>();
+
+        List<UserAnswerSubmitDto> answers = request.getAnswers();
+        if (answers != null) {
+            for (UserAnswerSubmitDto answerDto : answers) {
+                Question question = questionRepository.findById(answerDto.getQuestionId())
+                        .orElseThrow(() -> new IllegalArgumentException("Question not found"));
+
+                boolean isCorrect = false;
+                if (answerDto.getSelectedOption() == null || answerDto.getSelectedOption().isEmpty()) {
+                    totalUnanswered++;
+                } else {
+                    isCorrect = answerDto.getSelectedOption().equals(question.getCorrectAnswer());
+                    if (isCorrect) {
+                        totalCorrect++;
+                        int partNumber = getPartNumberForQuestion(question);
+                        if (partNumber >= 1 && partNumber <= 4) {
+                            listeningCorrect++;
+                        } else {
+                            readingCorrect++;
+                        }
+                    } else {
+                        totalIncorrect++;
+                        UserIncorrectQuestion incorrectQuestion = UserIncorrectQuestion.builder()
+                                .user(user)
+                                .question(question)
+                                .attempt(attempt)
+                                .build();
+                        incorrectQuestionRepository.save(incorrectQuestion);
+                    }
+                }
+
+                UserAnswer userAnswer = UserAnswer.builder()
+                        .attempt(attempt)
+                        .question(question)
+                        .selectedOption(answerDto.getSelectedOption())
+                        .isCorrect(isCorrect)
+                        .build();
+                userAnswerRepository.save(userAnswer);
+                savedAnswers.add(userAnswer);
+            }
+        }
+
+        attempt.setCompletedAt(LocalDateTime.now());
+        attempt.setDurationSeconds(request.getDurationSeconds());
+        attempt.setTotalCorrect(totalCorrect);
+        attempt.setTotalIncorrect(totalIncorrect);
+        attempt.setTotalUnanswered(totalUnanswered);
+        attempt.setListeningScore(listeningCorrect);
+        attempt.setReadingScore(readingCorrect);
+        attempt.setTotalScore(totalCorrect);
+
+        attemptRepository.save(attempt);
+
+        // Update pre-calculated stats (overall + per-test/part cache)
+        userDashboardStatsService.recalculateStats(user);
+        userTestStatsService.updateStatsForAttempt(user, attempt, savedAnswers);
+
+        return attempt.getId();
     }
 
     /**

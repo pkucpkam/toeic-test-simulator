@@ -41,6 +41,24 @@ dependencies {
 	testAnnotationProcessor("org.projectlombok:lombok")
 }
 
+// Load .env file and expose as environment variables for tests
+val envFile = file(".env")
+val envVars = mutableMapOf<String, String>()
+if (envFile.exists()) {
+	envFile.forEachLine { line ->
+		val trimmed = line.trim()
+		if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+			val idx = trimmed.indexOf('=')
+			if (idx > 0) {
+				val key = trimmed.substring(0, idx).trim()
+				val value = trimmed.substring(idx + 1).trim()
+				envVars[key] = value
+			}
+		}
+	}
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
+	environment(envVars)
 }

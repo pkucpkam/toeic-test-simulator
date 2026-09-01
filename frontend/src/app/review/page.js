@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getUser, logout } from '../../utils/auth';
-import apiClient from '../../utils/apiClient';
+import { ExplanationView } from '../../components/QuestionViews';
 import '../globals.css';
 
 export default function ReviewPage() {
@@ -151,27 +151,7 @@ export default function ReviewPage() {
 
             {/* Explanation */}
             {q.explanation && (
-              <div style={{
-                marginTop: '1rem', padding: '0.875rem 1rem',
-                background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
-                borderRadius: '8px', fontSize: '0.875rem', color: 'var(--text-main)'
-              }}>
-                <div style={{ fontWeight: 700, color: '#10b981', marginBottom: '0.75rem', fontSize: '0.95rem' }}>💡 Explanation:</div>
-                {q.explanation.split('\n').map((line, i) => {
-                  const match = line.trim().match(/^([A-D])\s+(.*)/);
-                  if (match) {
-                    return (
-                      <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.5', display: 'flex', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 'bold', background: 'rgba(16,185,129,0.2)', color: '#065f46', padding: '0 6px', borderRadius: '4px', height: 'fit-content' }}>
-                          {match[1]}
-                        </span>
-                        <span>{match[2]}</span>
-                      </div>
-                    );
-                  }
-                  return <div key={i} style={{ marginBottom: '0.5rem', lineHeight: '1.6' }}>{line}</div>;
-                })}
-              </div>
+              <ExplanationView explanation={q.explanation} />
             )}
 
             {/* Remove bookmark button */}
