@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getUser, logout } from '../../utils/auth';
 import apiClient from '../../utils/apiClient';
 import '../globals.css';
@@ -18,10 +18,23 @@ const PART_INFO = {
 };
 
 export default function TestSelectionPage() {
+  return (
+    <Suspense fallback={
+      <div className="premium-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Loading tests...</p>
+      </div>
+    }>
+      <TestSelectionContent />
+    </Suspense>
+  );
+}
+
+function TestSelectionContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState(null);
 
-  // Mode: null | 'full' | 'part'
+  // Mode: null | 'full' | 'part' | 'skill'
   const [selectedMode, setSelectedMode] = useState(null);
 
   const [years, setYears] = useState([]);
@@ -54,7 +67,10 @@ export default function TestSelectionPage() {
       try {
         const res = await apiClient.get('/tests/years');
         setYears(res.data);
-        if (res.data.length > 0) {
+        const yearParam = searchParams.get('year');
+        if (yearParam && res.data.map(y => y.toString()).includes(yearParam.toString())) {
+          setSelectedYear(parseInt(yearParam));
+        } else if (res.data.length > 0 && !selectedYear) {
           setSelectedYear(res.data[0]);
         }
       } catch (err) {
@@ -64,6 +80,56 @@ export default function TestSelectionPage() {
     init();
   }, [router]);
 
+  // Sync state with URL search parameters
+  useEffect(() => {
+    const mode = searchParams.get('mode');
+    const testId = searchParams.get('testId');
+    const year = searchParams.get('year');
+    const skillCat = searchParams.get('skillCat');
+    const skillPart = searchParams.get('skillPart');
+
+    if (mode && mode !== selectedMode) {
+      setSelectedMode(mode);
+    } else if (!mode && selectedMode) {
+      setSelectedMode(null);
+    }
+
+    if (year) {
+      const parsedYear = parseInt(year);
+      if (parsedYear && parsedYear !== selectedYear) {
+        setSelectedYear(parsedYear);
+      }
+    }
+
+    if (mode === 'part' && testId) {
+      const parsedTestId = parseInt(testId);
+      if (!selectedTest || selectedTest.id !== parsedTestId) {
+        apiClient.get(`/tests/${parsedTestId}`)
+          .then(res => {
+            setSelectedTest(res.data);
+            if (res.data.year) {
+              setSelectedYear(res.data.year);
+            }
+          })
+          .catch(err => {
+            console.error("Error loading test by id", err);
+          });
+      }
+    } else if (mode !== 'part' || !testId) {
+      if (selectedTest) {
+        setSelectedTest(null);
+        setParts([]);
+      }
+    }
+
+    if (mode === 'skill') {
+      if (skillCat) setSelectedSkillCategory(skillCat);
+      if (skillPart) {
+        setSelectedSkillPartNumber(parseInt(skillPart));
+      }
+    }
+  }, [searchParams]);
+
   // Fetch tests when year changes
   useEffect(() => {
     if (!selectedYear) return;
@@ -71,15 +137,6 @@ export default function TestSelectionPage() {
       try {
         const res = await apiClient.get(`/tests?year=${selectedYear}`);
         setTests(res.data);
-        setSelectedTest(null);
-        setParts([]);
-        setExpandedPart(null);
-        setMiniGroups({});
-
-        // Clear skill mode states on year change
-        setSelectedSkillCategory(null);
-        setSelectedSkillPartNumber(null);
-        setSkillParts([]);
       } catch (err) {
         console.error("Error fetching tests", err);
       }
@@ -108,6 +165,38 @@ export default function TestSelectionPage() {
     router.push('/login');
   };
 
+  const handleSelectMode = (mode) => {
+    setSelectedMode(mode);
+    const params = new URLSearchParams();
+    params.set('mode', mode);
+    if (selectedYear) params.set('year', selectedYear);
+    router.push(`/tests?${params.toString()}`);
+  };
+
+  const handleSelectYear = (y) => {
+    setSelectedYear(y);
+    setSelectedTest(null);
+    setParts([]);
+    setExpandedPart(null);
+    setMiniGroups({});
+    setSelectedSkillCategory(null);
+    setSelectedSkillPartNumber(null);
+    setSkillParts([]);
+    const params = new URLSearchParams();
+    if (selectedMode) params.set('mode', selectedMode);
+    params.set('year', y);
+    router.push(`/tests?${params.toString()}`);
+  };
+
+  const handleSelectTest = (t) => {
+    setSelectedTest(t);
+    const params = new URLSearchParams();
+    params.set('mode', 'part');
+    params.set('testId', t.id);
+    if (selectedYear) params.set('year', selectedYear);
+    router.push(`/tests?${params.toString()}`);
+  };
+
   const handleToggleMiniGroups = async (partId) => {
     if (expandedPart === partId) {
       setExpandedPart(null);
@@ -127,10 +216,25 @@ export default function TestSelectionPage() {
     }
   };
 
+  const handleSelectSkillCategory = (cat) => {
+    setSelectedSkillCategory(cat);
+    const params = new URLSearchParams();
+    params.set('mode', 'skill');
+    if (selectedYear) params.set('year', selectedYear);
+    params.set('skillCat', cat);
+    router.push(`/tests?${params.toString()}`);
+  };
+
   const handleSelectSkillPart = async (partNum) => {
     setSelectedSkillPartNumber(partNum);
     setLoadingSkillParts(true);
     setSkillParts([]);
+    const params = new URLSearchParams();
+    params.set('mode', 'skill');
+    if (selectedYear) params.set('year', selectedYear);
+    if (selectedSkillCategory) params.set('skillCat', selectedSkillCategory);
+    params.set('skillPart', partNum);
+    router.push(`/tests?${params.toString()}`);
     try {
       const res = await apiClient.get(`/tests/parts/summary?year=${selectedYear}&partNumber=${partNum}`);
       setSkillParts(res.data);
@@ -148,11 +252,24 @@ export default function TestSelectionPage() {
       setSelectedTest(null);
       setParts([]);
       setExpandedPart(null);
+      const params = new URLSearchParams();
+      params.set('mode', 'part');
+      if (selectedYear) params.set('year', selectedYear);
+      router.push(`/tests?${params.toString()}`);
     } else if (selectedMode === 'skill' && selectedSkillPartNumber) {
       setSelectedSkillPartNumber(null);
       setSkillParts([]);
+      const params = new URLSearchParams();
+      params.set('mode', 'skill');
+      if (selectedYear) params.set('year', selectedYear);
+      if (selectedSkillCategory) params.set('skillCat', selectedSkillCategory);
+      router.push(`/tests?${params.toString()}`);
     } else if (selectedMode === 'skill' && selectedSkillCategory) {
       setSelectedSkillCategory(null);
+      const params = new URLSearchParams();
+      params.set('mode', 'skill');
+      if (selectedYear) params.set('year', selectedYear);
+      router.push(`/tests?${params.toString()}`);
     } else {
       setSelectedMode(null);
       setSelectedTest(null);
@@ -160,6 +277,7 @@ export default function TestSelectionPage() {
       setSelectedSkillCategory(null);
       setSelectedSkillPartNumber(null);
       setSkillParts([]);
+      router.push('/tests');
     }
   };
 
@@ -197,7 +315,7 @@ export default function TestSelectionPage() {
             {years.map(y => (
               <button
                 key={y}
-                onClick={() => setSelectedYear(y)}
+                onClick={() => handleSelectYear(y)}
                 className="premium-btn"
                 style={{
                   padding: '0.5rem 1.25rem',
@@ -223,7 +341,7 @@ export default function TestSelectionPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginTop: '2rem' }}>
-              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedMode('full')}>
+              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => handleSelectMode('full')}>
                 <div className="card-badge bg-primary">Standard</div>
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎯</div>
                 <h2 className="card-title">Full Test</h2>
@@ -234,7 +352,7 @@ export default function TestSelectionPage() {
                 <button className="premium-btn btn-primary mt-auto">Start Full Test</button>
               </div>
 
-              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedMode('part')}>
+              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => handleSelectMode('part')}>
                 <div className="card-badge bg-secondary">Targeted</div>
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
                 <h2 className="card-title">Practice by Part</h2>
@@ -245,7 +363,7 @@ export default function TestSelectionPage() {
                 <button className="premium-btn mt-auto" style={{ background: 'var(--secondary)' }}>Select by Part</button>
               </div>
 
-              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedMode('skill')}>
+              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => handleSelectMode('skill')}>
                 <div className="card-badge" style={{ background: 'rgba(16,185,129,0.2)', color: '#10b981' }}>Skill Focus</div>
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎧</div>
                 <h2 className="card-title">Practice by Skill</h2>
@@ -261,7 +379,31 @@ export default function TestSelectionPage() {
           /* Step 2 (Full mode): Choose test */
         ) : selectedMode === 'full' && !selectedTest ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Quay lại
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">Choose a Full Test</h1>
               <p className="subtitle">Select a test for {selectedYear}</p>
             </div>
@@ -286,7 +428,31 @@ export default function TestSelectionPage() {
           /* Step 2 (Part mode): Choose test */
         ) : selectedMode === 'part' && !selectedTest ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Quay lại
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">Choose a Test</h1>
               <p className="subtitle">Then select which part to practice from that test</p>
             </div>
@@ -297,7 +463,7 @@ export default function TestSelectionPage() {
                   key={t.id}
                   className="premium-card"
                   style={{ cursor: 'pointer', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-                  onClick={() => setSelectedTest(t)}
+                  onClick={() => handleSelectTest(t)}
                 >
                   <div>
                     <div className="card-badge bg-secondary" style={{ marginBottom: '0.5rem' }}>Parts 1-7</div>
@@ -316,7 +482,31 @@ export default function TestSelectionPage() {
           /* Step 3 (Part mode): Parts of the selected test */
         ) : selectedMode === 'part' && selectedTest ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Danh sách đề
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">{selectedTest.title}</h1>
               <p className="subtitle">Select a part to practice – or expand to do a mini-section</p>
             </div>
@@ -425,13 +615,37 @@ export default function TestSelectionPage() {
           /* Step 2 (Skill mode): Choose Category */
         ) : selectedMode === 'skill' && !selectedSkillCategory ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Quay lại
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">Select a Skill</h1>
               <p className="subtitle">Focus your practice for {selectedYear}</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedSkillCategory('listening')}>
+              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => handleSelectSkillCategory('listening')}>
                 <div className="card-badge" style={{ background: 'rgba(139,92,246,0.2)', color: '#8b5cf6' }}>Parts 1-4</div>
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎧</div>
                 <h2 className="card-title">Listening</h2>
@@ -439,7 +653,7 @@ export default function TestSelectionPage() {
                 <button className="premium-btn mt-auto" style={{ background: 'var(--secondary)', color: 'white' }}>Focus Listening</button>
               </div>
 
-              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedSkillCategory('reading')}>
+              <div className="premium-card" style={{ cursor: 'pointer' }} onClick={() => handleSelectSkillCategory('reading')}>
                 <div className="card-badge" style={{ background: 'rgba(6,182,212,0.2)', color: '#06b6d4' }}>Parts 5-7</div>
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📖</div>
                 <h2 className="card-title">Reading</h2>
@@ -452,7 +666,31 @@ export default function TestSelectionPage() {
           /* Step 3 (Skill mode): Choose Part */
         ) : selectedMode === 'skill' && selectedSkillCategory && !selectedSkillPartNumber ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Quay lại
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">
                 {selectedSkillCategory === 'listening' ? 'Listening Parts' : 'Reading Parts'}
               </h1>
@@ -495,7 +733,31 @@ export default function TestSelectionPage() {
           /* Step 4 (Skill mode): List of Parts */
         ) : selectedMode === 'skill' && selectedSkillPartNumber ? (
           <div>
-            <div className="glass-panel text-center mb-12">
+            <div className="glass-panel text-center mb-12" style={{ position: 'relative' }}>
+              <button
+                onClick={goBack}
+                style={{
+                  position: 'absolute',
+                  left: '1.25rem',
+                  top: '1.25rem',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-muted)',
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.borderColor = 'var(--primary)'; }}
+                onMouseOut={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+              >
+                ← Quay lại
+              </button>
               <h1 className="text-4xl font-extrabold gradient-text">Part {selectedSkillPartNumber}: {PART_INFO[selectedSkillPartNumber]?.name}</h1>
               <p className="subtitle">Available tests from {selectedYear}</p>
             </div>

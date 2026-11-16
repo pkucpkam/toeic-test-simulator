@@ -28,6 +28,9 @@ export default function TestSimulator({ params, searchParams }) {
   const isMini = mode === 'mini';
   const isFull = mode === 'full';
   const isPart = !isFull && !isMini;
+  const backToTestUrl = (isPart || isMini)
+    ? `/tests?mode=part&testId=${testId}`
+    : `/tests?mode=full`;
 
   const [attemptId, setAttemptId] = useState(null);
   // Lazy start: store attempt metadata until the user actually submits
@@ -258,7 +261,7 @@ export default function TestSimulator({ params, searchParams }) {
       <div style={{ textAlign: 'center', color: '#00205c' }}>
         <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>😕</div>
         <p>No questions found for this section.</p>
-        <button className="iig-modal-btn iig-btn-finish" style={{ marginTop: '1rem' }} onClick={() => router.push('/tests')}>Go Back</button>
+        <button className="iig-modal-btn iig-btn-finish" style={{ marginTop: '1rem' }} onClick={() => router.push(backToTestUrl)}>Go Back</button>
       </div>
     </div>
   );
@@ -288,13 +291,21 @@ export default function TestSimulator({ params, searchParams }) {
       else resultsByPart[p].incorrect++;
     });
 
+    const currentDisplayTitle = scoreData.testTitle || testTitle || `Test ${testId}`;
+
     return (
       <div className="iig-result-page">
         <header className="iig-header" style={{ justifyContent: 'center', position: 'relative' }}>
           <div className="iig-header-left" style={{ position: 'absolute', left: '1rem', padding: '4px 12px 4px 6px' }}>
             <button
-              onClick={() => router.push('/dashboard')}
-              title="Back to Dashboard"
+              onClick={() => {
+                if (viewAttemptId) {
+                  router.push('/history');
+                } else {
+                  router.push(backToTestUrl);
+                }
+              }}
+              title={viewAttemptId ? "Back to History" : (isPart || isMini) ? `Quay lại ${currentDisplayTitle}` : "Back to Tests"}
               style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#00205c', paddingRight: '8px', borderRight: '2px solid #e0e0e0', marginRight: '8px', transition: 'color 0.2s' }}
               onMouseOver={e => e.currentTarget.style.color = '#f58220'}
               onMouseOut={e => e.currentTarget.style.color = '#00205c'}
@@ -307,6 +318,31 @@ export default function TestSimulator({ params, searchParams }) {
             <span style={{ color: '#00205c' }}>pkucpkam</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>TOEIC</span>
           </div>
           <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Result</div>
+          <div style={{ position: 'absolute', right: '1rem' }}>
+            {(isPart || isMini) && (
+              <button
+                onClick={() => router.push(backToTestUrl)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  color: 'white',
+                  padding: '5px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'background 0.2s',
+                }}
+                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+              >
+                ← Back to {currentDisplayTitle}
+              </button>
+            )}
+          </div>
         </header>
 
         <main className="iig-result-main">
@@ -485,11 +521,81 @@ export default function TestSimulator({ params, searchParams }) {
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem', flexWrap: 'wrap' }}>
-            <button className="iig-modal-btn iig-btn-review" onClick={() => router.push('/tests')}>
-              Practice Again
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2.5rem', flexWrap: 'wrap' }}>
+            {(isPart || isMini) && (
+              <button
+                className="iig-modal-btn"
+                style={{
+                  background: '#f58220',
+                  color: 'white',
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(245,130,32,0.35)',
+                  padding: '0.65rem 1.5rem',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+                onClick={() => router.push(backToTestUrl)}
+              >
+                <span>←</span> Quay lại {currentDisplayTitle} (Danh sách Part)
+              </button>
+            )}
+
+            {isFull && (
+              <button
+                className="iig-modal-btn iig-btn-finish"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '0.65rem 1.5rem',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+                onClick={() => router.push('/tests?mode=full')}
+              >
+                <span>←</span> Danh sách đề Full
+              </button>
+            )}
+
+            {viewAttemptId && (
+              <button
+                className="iig-modal-btn iig-btn-finish"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '0.65rem 1.5rem',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
+                onClick={() => router.push('/history')}
+              >
+                <span>←</span> Quay lại Lịch sử
+              </button>
+            )}
+
+            <button
+              className="iig-modal-btn iig-btn-review"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              onClick={() => {
+                if (viewAttemptId) {
+                  router.push(`/test/${testId}`);
+                } else {
+                  window.location.reload();
+                }
+              }}
+            >
+              <span>🔄</span> {isPart || isMini ? 'Làm lại Part này' : 'Làm lại đề này'}
             </button>
-            <button className="iig-modal-btn iig-btn-finish" onClick={() => router.push('/dashboard')}>
+
+            <button className="iig-modal-btn iig-btn-review" onClick={() => router.push('/tests')}>
+              Chọn đề khác
+            </button>
+
+            <button className="iig-modal-btn iig-btn-review" onClick={() => router.push('/dashboard')}>
               Dashboard
             </button>
           </div>
@@ -600,7 +706,7 @@ export default function TestSimulator({ params, searchParams }) {
           <span style={{ color: '#00205c' }}>pkucpkam</span> <span style={{ color: '#f58220', marginLeft: '4px' }}>TOEIC</span>
         </div>
         <div className="iig-header-center">
-          {currentQInfo.sectionTitle} · Q{currentQuestionIndex + 1}/{allQuestions.length}
+          {testTitle ? `${testTitle} · ` : ''}{currentQInfo.sectionTitle} · Q{currentQuestionIndex + 1}/{allQuestions.length}
         </div>
         <div className="iig-header-right">
           <div className="iig-progress-box">{answeredCount}/{allQuestions.length} answered</div>
@@ -775,7 +881,7 @@ export default function TestSimulator({ params, searchParams }) {
         confirmText="Leave"
         cancelText="Stay"
         type="danger"
-        onConfirm={() => router.push('/tests')}
+        onConfirm={() => router.push(backToTestUrl)}
         onCancel={() => setShowExitConfirm(false)}
       />
 
